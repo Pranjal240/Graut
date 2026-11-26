@@ -1,0 +1,16 @@
+{
+  "description": "Tells Claude at session start to use Graut",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/graut/scripts/graut.js\" hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

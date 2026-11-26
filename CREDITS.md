@@ -2,7 +2,7 @@
 
 Graut (the master skill, installer and meme lines) is by [Pranjal240](https://github.com/Pranjal240). The specialist work is other people's open source projects, copied here from the commits pinned in [sources.json](skills/graut/sources.json). Their copyright stays theirs, and each folder carries the author's license (`UPSTREAM-LICENSE`, plus `UPSTREAM-NOTICE*` where one exists).
 
-| Project | Author | License | Folders in `skills/` |
+| Project | Author | License | Folders in `skills/graut/packs/` |
 |---|---|---|---|
 | [ponytail](https://github.com/DietrichGebert/ponytail) | DietrichGebert | MIT | `ponytail`, `ponytail-*` |
 | [Gravitas](https://github.com/udaysharmadev/Gravitas) | udaysharmadev | MIT | `gravitas`, `gravitas-*` |
@@ -13,9 +13,9 @@ Graut (the master skill, installer and meme lines) is by [Pranjal240](https://gi
 | [HyperFrames community skills](https://github.com/heygen-com/hyperframes-community-skills) | HeyGen and contributors | Apache-2.0 | `camera-3d-captions`, `day-in-my-life`, `duo`, `p5-paint-animation`, `prod-by-claude`, `session-story`, `vox-explainer`, `x-posting-license` |
 | [nuwa-skill](https://github.com/alchaincyf/nuwa-skill) | alchaincyf | MIT | `huashu-nuwa` |
 | [SkillSpector](https://github.com/NVIDIA/SkillSpector) | NVIDIA | Apache-2.0 | `skill-inspector` |
-| [agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills) | sickn33 and contributors | Code MIT, written content CC BY 4.0 (`UPSTREAM-LICENSE-CONTENT`) | `graut/library/agentic-awesome-skills` (search index) |
-| [awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) | VoltAgent | MIT | `graut/library/awesome-agent-skills` |
-| [claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice) | shanraisshan | MIT | `graut/library/claude-code-best-practice` |
+| [agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills) | sickn33 and contributors | Code MIT, written content CC BY 4.0 (`UPSTREAM-LICENSE-CONTENT`) | `../library/agentic-awesome-skills` (search index) |
+| [awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) | VoltAgent | MIT | `../library/awesome-agent-skills` |
+| [claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice) | shanraisshan | MIT | `../library/claude-code-best-practice` |
 
 ## Media and fonts
 
@@ -26,9 +26,12 @@ Graut (the master skill, installer and meme lines) is by [Pranjal240](https://gi
 
 ## Changes made to the copies
 
-- `ui-ux-pro-max/SKILL.md`: script paths rewritten to `<skill-dir>` so they work from any install location, with a note saying so.
-- `huashu-nuwa`: only `SKILL.md`, `references/` and `scripts/` are copied; the example personas are not.
+- Every `SKILL.md` is renamed `PACK.md`, so agents list Graut as one skill, and links to it are updated.
+- `ui-ux-pro-max/PACK.md`: script paths rewritten to `<skill-dir>` so they work from any install location, with a note saying so.
+- `gravitas/scripts/doctor.py`: looks for `PACK.md`.
+- Three links to files outside a skill (in `gravitas` and `huashu-nuwa`) point to the author's repository instead.
+- `huashu-nuwa`: only its skill file, `references/` and `scripts/` are copied; the example personas are not.
 - Library folders keep only Markdown and JSON files.
-- Coverage data and Python caches are left out. License files are added under the `UPSTREAM-` prefix.
+- Coverage data, Python caches and `.gitignore` files are left out. License files are added under the `UPSTREAM-` prefix.
 
 Graut is not affiliated with or endorsed by any of these projects. If you are an author and want something changed or removed, open an issue.

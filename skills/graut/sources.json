@@ -6,7 +6,9 @@
       "id": "skillspector",
       "repo": "NVIDIA/SkillSpector",
       "sha": "02894ec5b8a0a70637df5a6b45763de92940cedd",
-      "skills": { "skill-inspector": "skills/skill-inspector" }
+      "skills": {
+        "skill-inspector": "skills/skill-inspector"
+      }
     },
     {
       "id": "ponytail",
@@ -30,13 +32,20 @@
         "gravitas-highstakes": "skills/gravitas-highstakes",
         "gravitas-python": "skills/gravitas-python",
         "gravitas-typescript": "skills/gravitas-typescript"
+      },
+      "patch": {
+        "gravitas/scripts/doctor.py": {
+          "\"SKILL.md\"": "\"PACK.md\""
+        },
+        "gravitas/references/recovery.md": {
+          "(../../../docs/edge-cases.md": "(https://github.com/udaysharmadev/Gravitas/blob/e0d22cd4f7639b1af3899bc3e70d314b2ae6339a/docs/edge-cases.md"
+        }
       }
     },
     {
       "id": "ui-ux-pro-max",
       "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sha": "3442615dcc7dcb3f70a1c9f69d5c287f37db023e",
-      "replace": { "${CLAUDE_PLUGIN_ROOT}/.claude/skills/ui-ux-pro-max": "<skill-dir>" },
       "skills": {
         "ui-ux-pro-max": ".claude/skills/ui-ux-pro-max",
         "banner-design": ".claude/skills/banner-design",
@@ -45,19 +54,29 @@
         "design-system": ".claude/skills/design-system",
         "slides": ".claude/skills/slides",
         "ui-styling": ".claude/skills/ui-styling"
+      },
+      "patch": {
+        "ui-ux-pro-max/PACK.md": {
+          "${CLAUDE_PLUGIN_ROOT}/.claude/skills/ui-ux-pro-max": "<skill-dir>"
+        }
       }
     },
     {
       "id": "impeccable",
       "repo": "pbakaus/impeccable",
       "sha": "2fc5e1459efbbf06d92c7306517c286bf12490cf",
-      "skills": { "impeccable": ".claude/skills/impeccable" }
+      "skills": {
+        "impeccable": ".claude/skills/impeccable"
+      }
     },
     {
       "id": "brag",
       "repo": "latent-spaces/brag",
       "sha": "06379432a9243c951dfcc051153be18d2d261044",
-      "skills": { "brag": "skills/brag", "brag-slim": "skills/brag-slim" }
+      "skills": {
+        "brag": "skills/brag",
+        "brag-slim": "skills/brag-slim"
+      }
     },
     {
       "id": "hyperframes",
@@ -89,25 +108,45 @@
       "id": "nuwa",
       "repo": "alchaincyf/nuwa-skill",
       "sha": "8944932e35597bbcaf52b807e506c3900d0557c1",
-      "skills": { "huashu-nuwa": ["SKILL.md", "references", "scripts"] }
+      "skills": {
+        "huashu-nuwa": [
+          "SKILL.md",
+          "references",
+          "scripts"
+        ]
+      },
+      "patch": {
+        "huashu-nuwa/references/fidelity-scorecard.md": {
+          "(../COMMUNITY.md": "(https://github.com/alchaincyf/nuwa-skill/blob/8944932e35597bbcaf52b807e506c3900d0557c1/COMMUNITY.md",
+          "(../CONTRIBUTING.md": "(https://github.com/alchaincyf/nuwa-skill/blob/8944932e35597bbcaf52b807e506c3900d0557c1/CONTRIBUTING.md"
+        }
+      }
     },
     {
       "id": "agentic-awesome-skills",
       "repo": "sickn33/agentic-awesome-skills",
       "sha": "ca18ff485998192914e1003cbc1d7489cd1c3e65",
-      "library": ["skills_index.json"]
+      "library": [
+        "skills_index.json"
+      ]
     },
     {
       "id": "awesome-agent-skills",
       "repo": "VoltAgent/awesome-agent-skills",
       "sha": "20c57162c790d59d35e47c1538dc534c5c59e60d",
-      "library": ["README.md"]
+      "library": [
+        "README.md"
+      ]
     },
     {
       "id": "claude-code-best-practice",
       "repo": "shanraisshan/claude-code-best-practice",
       "sha": "c7b331e1440c83aeeb49cf97020e20e8c07c1d3c",
-      "library": ["README.md", "best-practice", "orchestration-workflow"]
+      "library": [
+        "README.md",
+        "best-practice",
+        "orchestration-workflow"
+      ]
     }
   ]
 }

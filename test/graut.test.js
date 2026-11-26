@@ -6,14 +6,15 @@ const os = require('os');
 const path = require('path');
 const { execFileSync, spawnSync } = require('child_process');
 
-const SKILLS = path.join(__dirname, '..', 'skills');
-const manifestOf = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+const ROOT = path.join(__dirname, '..');
+const GRAUT = path.join(ROOT, 'skills', 'graut');
+const json = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
-// Offline sandbox: a copy of the graut skill with two fake bundled skills beside it,
+// Offline sandbox: a copy of the graut skill holding two fake packs,
 // and a local git repo standing in for the catalog.
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'graut-test-'));
 const home = path.join(tmp, 'home');
-const bundle = path.join(tmp, 'bundle');
+const bundle = path.join(tmp, 'bundle', 'graut');
 const upstream = path.join(tmp, 'upstream');
 const write = (file, text) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -22,17 +23,15 @@ const write = (file, text) => {
 const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 const skill = (name, description) => `---\nname: ${name}\ndescription: ${description}\n---\nbody\n`;
 
-fs.cpSync(path.join(SKILLS, 'graut', 'scripts'), path.join(bundle, 'graut', 'scripts'), { recursive: true });
-write(path.join(bundle, 'graut', 'SKILL.md'), skill('graut', 'master'));
-for (const name of ['alpha', 'mine']) {
-  write(path.join(bundle, name, 'SKILL.md'), skill(name, 'bundled'));
-  write(path.join(bundle, name, 'UPSTREAM-LICENSE'), 'MIT');
-}
+fs.cpSync(path.join(GRAUT, 'scripts'), path.join(bundle, 'scripts'), { recursive: true });
+write(path.join(bundle, 'SKILL.md'), skill('graut', 'master'));
+write(path.join(bundle, 'packs', 'alpha', 'PACK.md'), skill('alpha', 'makes walrus things'));
+write(path.join(bundle, 'packs', 'beta', 'PACK.md'), skill('beta', 'bundled'));
 const index = JSON.stringify([
   { id: 'extra', name: 'extra', path: 'skills/extra', description: 'pdf tables', risk: 'safe' },
   { id: 'evil', name: 'evil', path: 'skills/../../escape', description: 'x', risk: 'safe' },
 ]);
-write(path.join(bundle, 'graut', 'library', 'cat', 'skills_index.json'), index);
+write(path.join(bundle, 'library', 'cat', 'skills_index.json'), index);
 
 write(path.join(upstream, 'skills', 'extra', 'SKILL.md'), skill('extra', 'pdf tables'));
 write(path.join(upstream, 'LICENSE'), 'MIT');
@@ -47,53 +46,69 @@ write(
   JSON.stringify({
     catalog: 'cat',
     sources: [
-      { id: 'one', repo: upstream, sha: 'unused', skills: { alpha: 'skills/alpha', mine: 'skills/mine' } },
+      { id: 'one', repo: upstream, sha: 'unused', skills: { alpha: 'skills/alpha', beta: 'skills/beta' } },
       { id: 'cat', repo: upstream, sha: git('rev-parse', 'HEAD'), library: [] },
     ],
   })
 );
 
 const graut = (...args) =>
-  spawnSync(process.execPath, [path.join(bundle, 'graut', 'scripts', 'graut.js'), ...args], {
+  spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), ...args], {
     cwd: tmp,
     encoding: 'utf8',
     env: { ...process.env, GRAUT_HOME: home, GRAUT_SOURCES: manifest },
   });
-const installed = path.join(home, '.claude', 'skills');
+const claude = path.join(home, '.claude', 'skills');
+const codex = path.join(home, '.agents', 'skills');
 const memory = path.join(home, '.claude', 'CLAUDE.md');
-const flags = ['--agents', 'claude', '--no-system-deps'];
+const flags = ['--agents', 'claude,codex', '--no-system-deps'];
 
-write(path.join(installed, 'mine', 'SKILL.md'), skill('mine', 'user zebra version'));
+// left by Graut 1.0, which installed each specialist separately
+write(path.join(claude, 'alpha', 'SKILL.md'), skill('alpha', 'old copy'));
+write(path.join(claude, 'alpha', '.graut'), 'Pranjal240/Graut\n');
+// the user's own skills
+write(path.join(claude, 'beta', 'SKILL.md'), skill('beta', 'user zebra version'));
+write(path.join(codex, 'graut', 'SKILL.md'), skill('graut', 'user graut'));
 write(memory, 'my own rules\n');
 test.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-test('install copies bundled skills, keeps the user copy, activates once', () => {
+test('hook tells Claude about Graut until CLAUDE.md does', () => {
+  assert.match(graut('hook').stdout, /Use the `graut` skill/);
+});
+
+test('install leaves one graut skill, merges old copies and keeps user folders', () => {
   for (let run = 0; run < 2; run++) {
     const r = graut('install', ...flags);
     assert.strictEqual(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /Tention mat le, teri problem me graut bhar denge/);
   }
-  for (const name of ['graut', 'alpha']) assert.ok(fs.existsSync(path.join(installed, name, '.graut')), name);
-  assert.match(read(installed, 'mine', 'SKILL.md'), /zebra/);
+  assert.ok(fs.existsSync(path.join(claude, 'graut', 'packs', 'alpha', 'PACK.md')));
+  assert.deepStrictEqual(fs.readdirSync(claude).sort(), ['beta', 'graut']);
+  assert.match(read(claude, 'beta', 'SKILL.md'), /zebra/);
+  assert.match(read(codex, 'graut', 'SKILL.md'), /user graut/);
   assert.strictEqual(read(memory).match(/graut:start/g).length, 1);
   assert.strictEqual(read(`${memory}.graut.bak`), 'my own rules\n');
+  assert.strictEqual(graut('hook').stdout, '');
 });
 
-test('find searches skills on this machine and the catalog', () => {
-  assert.match(graut('find', 'zebra').stdout, /Already on this machine[\s\S]*mine/);
+test('find searches packs, other local skills and the catalog', () => {
+  assert.match(graut('find', 'walrus').stdout, /Already on this machine[\s\S]*alpha[\s\S]*PACK\.md/);
+  assert.match(graut('find', 'zebra').stdout, /beta/);
   assert.match(graut('find', 'pdf').stdout, /In the catalog[\s\S]*extra/);
 });
 
-test('add installs a catalog skill only past the scan or on request', () => {
-  // a scanner that is absent or fails must not silently install a catalog skill
-  const first = graut('add', 'extra', '--agents', 'claude');
+test('add gives a catalog skill to Graut only past the scan or on request', () => {
+  const added = path.join(home, '.graut', 'packs', 'extra');
+  // a scanner that is absent or fails must not silently add a catalog skill
+  const first = graut('add', 'extra');
   if (first.status !== 0) {
     assert.match(first.stdout, /par isse kam nhi chalega/);
-    assert.ok(!fs.existsSync(path.join(installed, 'extra')));
-    const forced = graut('add', 'extra', '--agents', 'claude', '--allow-risky');
+    assert.ok(!fs.existsSync(added));
+    const forced = graut('add', 'extra', '--allow-risky');
     assert.strictEqual(forced.status, 0, forced.stdout + forced.stderr);
   }
-  assert.ok(fs.existsSync(path.join(installed, 'extra', 'UPSTREAM-LICENSE')));
+  assert.ok(fs.existsSync(path.join(added, 'UPSTREAM-LICENSE')));
+  assert.ok(!fs.existsSync(path.join(claude, 'extra')));
 });
 
 test('add refuses unknown ids and paths that escape', () => {
@@ -107,26 +122,65 @@ test('unknown agent is rejected', () => {
   assert.match(graut('install', '--agents', 'clippy').stderr, /unknown agent/);
 });
 
+test('strict leaves out packs that did not pass a scan', () => {
+  const r = graut('install', ...flags, '--strict');
+  assert.match(r.stdout, /did not pass the scan \(--strict\): alpha, beta/);
+  assert.deepStrictEqual(fs.readdirSync(path.join(claude, 'graut', 'packs')), []);
+});
+
 test('uninstall removes only what Graut added', () => {
   assert.strictEqual(graut('uninstall').status, 0);
-  assert.deepStrictEqual(fs.readdirSync(installed), ['mine']);
+  assert.deepStrictEqual(fs.readdirSync(claude), ['beta']);
+  assert.ok(fs.existsSync(path.join(codex, 'graut', 'SKILL.md')));
   assert.strictEqual(read(memory), 'my own rules\n');
 });
 
-test('every bundled skill is complete', () => {
-  const { sources } = manifestOf(path.join(SKILLS, 'graut', 'sources.json'));
+const walk = (dir) =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path.join(dir, e.name);
+    return e.isDirectory() ? walk(full) : [full];
+  });
+
+test('agents see exactly one skill, and every pack inside it is complete', () => {
+  const { sources } = json(path.join(GRAUT, 'sources.json'));
   const names = sources.flatMap((s) => Object.keys(s.skills || {}));
   assert.strictEqual(names.length, 34);
-  const router = read(SKILLS, 'graut', 'SKILL.md');
+  assert.deepStrictEqual(fs.readdirSync(path.join(ROOT, 'skills')), ['graut']);
+  const skillFiles = walk(GRAUT).filter((f) => path.basename(f) === 'SKILL.md');
+  assert.deepStrictEqual(skillFiles, [path.join(GRAUT, 'SKILL.md')]);
+
+  const router = read(GRAUT, 'SKILL.md');
+  assert.deepStrictEqual(fs.readdirSync(path.join(GRAUT, 'packs')).sort(), [...names].sort());
   for (const name of names) {
-    assert.match(read(SKILLS, name, 'SKILL.md'), new RegExp(`^---[\\s\\S]*?\\nname: *["']?${name}\\b`), name);
-    assert.ok(fs.existsSync(path.join(SKILLS, name, 'UPSTREAM-LICENSE')), `${name} license`);
-    assert.ok(router.includes(`\`${name}\``) || name.startsWith('ponytail-'), `router does not mention ${name}`);
-    assert.ok(!read(SKILLS, name, 'SKILL.md').includes('CLAUDE_PLUGIN_ROOT}/.claude'), `${name} path`);
+    const pack = read(GRAUT, 'packs', name, 'PACK.md');
+    assert.match(pack, new RegExp(`^---[\\s\\S]*?\\nname: *["']?${name}\\b`), name);
+    assert.ok(fs.existsSync(path.join(GRAUT, 'packs', name, 'UPSTREAM-LICENSE')), `${name} license`);
+    assert.ok(router.includes(`\`${name}\``), `router does not mention ${name}`);
+    assert.ok(!pack.includes('CLAUDE_PLUGIN_ROOT}/.claude'), `${name} path`);
   }
   for (const source of sources.filter((s) => s.library)) {
     for (const item of source.library) {
-      assert.ok(fs.existsSync(path.join(SKILLS, 'graut', 'library', source.id, item)), `${source.id}/${item}`);
+      assert.ok(fs.existsSync(path.join(GRAUT, 'library', source.id, item)), `${source.id}/${item}`);
     }
   }
+});
+
+test('links inside the packs lead to files that exist', () => {
+  const broken = [];
+  for (const file of walk(path.join(GRAUT, 'packs')).filter((f) => f.endsWith('.md'))) {
+    const prose = fs.readFileSync(file, 'utf8').replace(/^(```|~~~)[\s\S]*?^\1/gm, '').replace(/`[^`\n]*`/g, '');
+    for (const [, link] of prose.matchAll(/\]\(([^)\s]+)\)/g)) {
+      const target = link.split(/[#?]/)[0];
+      // skip web links, template placeholders and words that are not file names
+      if (!target || /^([a-z]+:|\/)|[<>{}$*]/.test(target) || !/\.[A-Za-z0-9]{1,5}$|\//.test(target)) continue;
+      if (!fs.existsSync(path.join(path.dirname(file), target))) broken.push(`${path.relative(GRAUT, file)} -> ${link}`);
+    }
+  }
+  assert.deepStrictEqual(broken, []);
+});
+
+test('release versions agree and the plugin hook points at the script', () => {
+  const version = json(path.join(ROOT, 'package.json')).version;
+  assert.strictEqual(json(path.join(ROOT, '.claude-plugin', 'plugin.json')).version, version);
+  assert.match(read(ROOT, 'hooks', 'hooks.json'), /skills\/graut\/scripts\/graut\.js\\" hook/);
 });

@@ -1,19 +1,37 @@
 {
   "name": "graut-bhar-de",
-  "version": "1.0.0",
-  "description": "Har problem me Graut bhar denge: one master skill and 34 specialists for Claude Code, Codex, Antigravity and other coding agents",
+  "version": "1.1.0",
+  "description": "Har problem me Graut bhar denge: one skill that plans, builds and verifies, with 34 specialists loaded on demand",
   "bin": {
     "graut-bhar-de": "skills/graut/scripts/graut.js",
     "graut": "skills/graut/scripts/graut.js"
   },
-  "files": ["skills", ".claude-plugin", "CREDITS.md", "SCAN.md"],
+  "files": [
+    "skills",
+    "hooks",
+    ".claude-plugin",
+    "CREDITS.md",
+    "SCAN.md"
+  ],
   "scripts": {
     "test": "node --test test/graut.test.js",
     "sync": "node scripts/sync.js"
   },
-  "engines": { "node": ">=18.3" },
-  "keywords": ["agent-skills", "claude-code", "codex", "antigravity", "gemini-cli", "cursor"],
+  "engines": {
+    "node": ">=18.3"
+  },
+  "keywords": [
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "antigravity",
+    "gemini-cli",
+    "cursor"
+  ],
   "author": "Pranjal240",
   "license": "SEE LICENSE IN CREDITS.md",
-  "repository": { "type": "git", "url": "git+https://github.com/Pranjal240/Graut.git" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pranjal240/Graut.git"
+  }
 }

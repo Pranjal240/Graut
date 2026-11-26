@@ -6,7 +6,7 @@ NVIDIA SkillSpector 2.13.7, static analysis only (`--no-llm`), run on 2026-11-27
 
 `graut` (score 34, caution: it mentions `sudo` in install hints and `npx github`), `skill-inspector`, the six `ponytail` skills, `gravitas-highstakes`, `gravitas-python`, `gravitas-typescript`, `banner-design`, `design-system`, `slides`, `ui-styling`, `brag`, `brag-slim`, `hyperframes-registry`, `camera-3d-captions`, `prod-by-claude`, `x-posting-license`, `huashu-nuwa`.
 
-`graut` was scanned without its library folder, which is search data from the catalogs.
+`graut` was scanned without its `packs` and `library` folders: the packs are listed here one by one, and the library is search data from the catalogs. Each pack was scanned under its original file name, `SKILL.md`.
 
 ## Rated high risk (13)
 
@@ -34,6 +34,17 @@ NVIDIA SkillSpector 2.13.7, static analysis only (`--no-llm`), run on 2026-11-27
 - One of the three "hidden instructions" files in `hyperframes` was opened: an ordinary template comment.
 
 The remaining findings were **not** reviewed one by one.
+
+## Do the skills run?
+
+Checked on Windows on 2026-11-27, without FFmpeg and without API keys:
+
+- All 242 Python, JavaScript and shell scripts parse.
+- Key tools run: design system, logo, identity and slide search, token generator and validator, brand context, and the `gravitas` and HyperFrames launchers.
+- Unit tests of the design skills: 340 pass, 3 skip. Five `ui-ux-pro-max` test files need the author's full repository and do not load.
+- Node tests of `hyperframes`, `media-use` and `brag`: 291 pass, 118 skip, 57 fail. 55 fail the same way in the authors' own folder layout (some report missing FFmpeg). The other 2 are style rules that also look at neighbouring non-HyperFrames skills.
+
+Not run: the `impeccable` engine and the HyperFrames command line (both are downloaded at first use), and anything that needs a paid service.
 
 ## Do it yourself
 

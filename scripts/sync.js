@@ -11,10 +11,11 @@ process.env.GRAUT_HOME = path.join(os.tmpdir(), 'graut-sync');
 const { fetchSource, stageSkill, loadManifest } = require('../skills/graut/scripts/graut.js');
 
 const ROOT = path.join(__dirname, '..');
-const SKILLS = path.join(ROOT, 'skills');
-const LIBRARY = path.join(SKILLS, 'graut', 'library');
+const GRAUT = path.join(ROOT, 'skills', 'graut');
+const PACKS = path.join(GRAUT, 'packs');
+const LIBRARY = path.join(GRAUT, 'library');
 const NOTE =
-  '> `<skill-dir>` below is the folder that contains this SKILL.md. Use its real path in commands. (Path edited by Graut.)';
+  '> `<skill-dir>` below is the folder that contains this file. Use its real path in commands. (Path edited by Graut.)';
 
 const walk = (dir) =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -22,18 +23,31 @@ const walk = (dir) =>
     return e.isDirectory() ? walk(full) : [full];
   });
 
-function rewrite(dir, replacements) {
-  for (const file of walk(dir).filter((f) => f.endsWith('.md'))) {
-    const old = fs.readFileSync(file, 'utf8');
-    let text = old;
-    for (const [from, to] of Object.entries(replacements)) text = text.split(from).join(to);
-    if (text === old) continue;
-    if (path.basename(file) === 'SKILL.md') text = text.replace(/^(---\n[\s\S]*?\n---\n)/, `$1\n${NOTE}\n`);
-    fs.writeFileSync(file, text);
+// A file called SKILL.md is picked up by agents as its own skill, wherever it sits. Packs are
+// called PACK.md so that agents list only Graut, and links to them are updated to match.
+function pack(dir) {
+  for (const file of walk(dir)) {
+    if (file.endsWith('.md')) {
+      const old = fs.readFileSync(file, 'utf8');
+      const text = old.replace(/(\]\((?!https?:)[^)\s]*)SKILL\.md/g, '$1PACK.md');
+      if (text !== old) fs.writeFileSync(file, text);
+    }
+    if (path.basename(file) === 'SKILL.md') fs.renameSync(file, path.join(path.dirname(file), 'PACK.md'));
   }
 }
 
+function patch(file, replacements) {
+  let text = fs.readFileSync(file, 'utf8');
+  for (const [from, to] of Object.entries(replacements)) {
+    if (!text.includes(from)) throw new Error(`patch no longer applies to ${file}: ${from}`);
+    text = text.split(from).join(to);
+  }
+  if (path.basename(file) === 'PACK.md') text = text.replace(/^(---\n[\s\S]*?\n---\n)/, `$1\n${NOTE}\n`);
+  fs.writeFileSync(file, text);
+}
+
 const executables = [];
+fs.rmSync(PACKS, { recursive: true, force: true });
 fs.rmSync(LIBRARY, { recursive: true, force: true });
 
 for (const source of loadManifest().sources) {
@@ -45,19 +59,19 @@ for (const source of loadManifest().sources) {
 
   for (const [name, from] of skills) {
     const stage = stageSkill(source, repo, name, from);
-    const dest = path.join(SKILLS, name);
-    fs.rmSync(dest, { recursive: true, force: true });
+    const dest = path.join(PACKS, name);
     // coverage data and caches are build leftovers, not part of a skill
-    fs.cpSync(stage, dest, { recursive: true, filter: (f) => !/(^|[\\/])(\.coverage|__pycache__)$/.test(f) });
-    if (source.replace) rewrite(dest, source.replace);
+    fs.cpSync(stage, dest, { recursive: true, filter: (f) => !/(^|[\\/])(\.coverage|__pycache__|\.gitignore)$/.test(f) });
+    pack(dest);
     for (const line of modes.split('\n').filter((l) => l.startsWith('100755'))) {
       const file = line.split('\t')[1];
       for (const item of [].concat(from)) {
         const inside = Array.isArray(from) ? path.basename(item) : '';
-        if (file.startsWith(`${item}/`)) executables.push(path.join('skills', name, inside, file.slice(item.length + 1)));
+        if (file.startsWith(`${item}/`)) executables.push(path.join(dest, inside, file.slice(item.length + 1)));
       }
     }
   }
+  for (const [file, replacements] of Object.entries(source.patch || {})) patch(path.join(PACKS, file), replacements);
 
   // Search lists and reference docs: text only, so pictures do not bloat the repo.
   if (library.length) {
@@ -68,6 +82,7 @@ for (const source of loadManifest().sources) {
         filter: (f) => fs.statSync(f).isDirectory() || /\.(md|json)$/.test(f),
       });
     }
+    pack(dest);
     for (const file of fs.readdirSync(repo).filter((f) => /^(LICENSE|NOTICE)/i.test(f))) {
       fs.cpSync(path.join(repo, file), path.join(dest, `UPSTREAM-${file}`));
     }
@@ -77,7 +92,8 @@ for (const source of loadManifest().sources) {
 // Windows does not record the executable bit, so it is set in the git index.
 if (fs.existsSync(path.join(ROOT, '.git'))) {
   for (const file of executables) {
-    execFileSync('git', ['-C', ROOT, 'update-index', '--add', '--chmod=+x', file.replace(/\\/g, '/')]);
+    const relative = path.relative(ROOT, file).replace(/\\/g, '/');
+    execFileSync('git', ['-C', ROOT, 'update-index', '--add', '--chmod=+x', relative]);
   }
 }
 console.log(`Done. ${executables.length} executable files.`);

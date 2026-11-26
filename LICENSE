@@ -2,9 +2,10 @@ MIT License
 
 Copyright (c) 2026 Pranjal240
 
-This license covers Graut's own files: skills/graut (except its library
-folder), scripts, test, .claude-plugin and the files in the repository root.
-Every other folder keeps its own authors' license (see CREDITS.md).
+This license covers Graut's own files: skills/graut (except its packs and
+library folders), scripts, test, hooks, .claude-plugin and the files in the
+repository root. The packs and library folders keep their own authors'
+licenses (see CREDITS.md).
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
