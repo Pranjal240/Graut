@@ -121,7 +121,7 @@ The floor: readable contrast, a deliberate type and spacing scale, hover, focus,
 
 ## Level
 
-The user picks how hard Graut works, from the panel or with `npx graut level <name>`. Follow the level named in the session reminder; with none, use full.
+The user picks how hard Graut works, from the panel or with `npx graut-bhar-de level <name>`. Follow the level named in the session reminder; with none, use full.
 
 | Level | Behaviour |
 |---|---|
@@ -190,7 +190,7 @@ Modelled on a person: `huashu-nuwa`. Anything else: write `<name>/SKILL.md` with
 node "<GRAUT>/scripts/graut.js" doctor
 ```
 
-If a pack is missing, give the user the third line with `npx graut`. Full setup (missing tools, other agents, always-on) edits agent instruction files and installs software, so run `node "<GRAUT>/scripts/graut.js" install` only after the user agrees.
+If a pack is missing, give the user the third line with `npx graut-bhar-de`. Full setup (missing tools, other agents, always-on) edits agent instruction files and installs software, so run `node "<GRAUT>/scripts/graut.js" install` only after the user agrees.
 
 ## Always
 

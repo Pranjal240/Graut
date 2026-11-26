@@ -49,6 +49,6 @@ Not run: the `impeccable` engine and the HyperFrames command line (both are down
 ## Do it yourself
 
 ```bash
-npx graut --scan     # scan, report, install
-npx graut --strict   # install only what passes
+npx graut-bhar-de --scan     # scan, report, install
+npx graut-bhar-de --strict   # install only what passes
 ```

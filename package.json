@@ -1,8 +1,9 @@
 {
-  "name": "graut",
-  "version": "1.2.0",
+  "name": "graut-bhar-de",
+  "version": "1.2.1",
   "description": "Web, AI, machine learning or any software problem: sabme Graut bhar denge. One skill that plans, builds and verifies, by Pranjal",
   "bin": {
+    "graut-bhar-de": "skills/graut/scripts/graut.js",
     "graut": "skills/graut/scripts/graut.js"
   },
   "files": [

@@ -21,7 +21,7 @@ const VENDOR = at('.graut', 'vendor');
 const ADDED = at('.graut', 'packs'); // catalog skills the user added; only Graut reads this folder
 const STAGE = at('.graut', 'staging');
 const MANIFEST = process.env.GRAUT_SOURCES || path.join(SKILL_DIR, 'sources.json');
-const CMD = 'npx graut';
+const CMD = 'npx graut-bhar-de';
 
 const SAY = {
   start: 'Tention mat le, teri problem me graut bhar denge',
