@@ -9,7 +9,7 @@ const { parseArgs } = require('util');
 const SKILL_DIR = path.dirname(__dirname);
 // The specialists live inside Graut as PACK.md files, so agents list one skill and load the rest on demand.
 const PACKS = path.join(SKILL_DIR, 'packs');
-const TAG = 'Pranjal240/Graut';
+const TAG = 'Pranjal240/Graut'; // written into the marker of everything Graut installs
 // GRAUT_HOME points everything at a sandbox (used by tests); agent env overrides are ignored then.
 const HOME = process.env.GRAUT_HOME || os.homedir();
 const env = (name) => (process.env.GRAUT_HOME ? undefined : process.env[name]);
@@ -21,7 +21,7 @@ const VENDOR = at('.graut', 'vendor');
 const ADDED = at('.graut', 'packs'); // catalog skills the user added; only Graut reads this folder
 const STAGE = at('.graut', 'staging');
 const MANIFEST = process.env.GRAUT_SOURCES || path.join(SKILL_DIR, 'sources.json');
-const CMD = 'npx github:Pranjal240/Graut';
+const CMD = 'npx graut';
 
 const SAY = {
   start: 'Tention mat le, teri problem me graut bhar denge',
@@ -47,12 +47,20 @@ const AGENTS = {
   kiro: { detect: [at('.kiro')], skills: at('.kiro', 'skills') },
 };
 
-const BLOCK = `<!-- graut:start -->
-## Graut
-Use the \`graut\` skill for every task that needs more than a direct answer, and for any "what should I do" or "kya karu" question. It plans the work, loads the specialist it needs, checks the result and keeps project memory in \`.graut/memory.md\`.
-Open such a task with the line: "${SAY.start}"
-<!-- graut:end -->`;
 const BLOCK_RE = /<!-- graut:start -->[\s\S]*?<!-- graut:end -->(\r?\n)?/;
+// How hard Graut works. The panel in Claude Code and the `level` command both write this file.
+const LEVELS = ['off', 'lite', 'full', 'ultra'];
+const LEVEL_FILE = at('.graut', 'level');
+const savedLevel = () => {
+  const text = fs.existsSync(LEVEL_FILE) ? fs.readFileSync(LEVEL_FILE, 'utf8').trim() : '';
+  return LEVELS.includes(text) ? text : 'full';
+};
+// The always-on note for an agent at a level; none when Graut is off.
+const block = (level) => {
+  if (level === 'off') return '';
+  const rules = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, 'levels.json'), 'utf8'));
+  return `<!-- graut:start -->\n## Graut\n${rules[level]}\n<!-- graut:end -->`;
+};
 
 // [command, version flag, winget id, brew name, apt/manual hint]
 const TOOLS = {
@@ -233,14 +241,45 @@ function pickAgents(list) {
   return found.length ? found : ['codex']; // ~/.agents/skills is the shared fallback
 }
 
-function activate(file) {
-  const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+const read = (file) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '');
+const isActive = (file) => BLOCK_RE.test(read(file));
+
+function deactivate(file) {
+  if (isActive(file)) fs.writeFileSync(file, read(file).replace(BLOCK_RE, ''));
+}
+
+function activate(file, level) {
+  const text = block(level);
+  if (!text) return deactivate(file);
+  const old = read(file);
   if (old && !BLOCK_RE.test(old)) fs.copyFileSync(file, `${file}.graut.bak`);
   const next = BLOCK_RE.test(old)
-    ? old.replace(BLOCK_RE, () => `${BLOCK}\n`)
-    : `${old}${old && !old.endsWith('\n') ? '\n' : ''}${BLOCK}\n`;
+    ? old.replace(BLOCK_RE, () => `${text}\n`)
+    : `${old}${old && !old.endsWith('\n') ? '\n' : ''}${text}\n`;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, next);
+}
+
+// `graut level` shows the level; `graut level ultra` changes it for every agent.
+function level(name, opts) {
+  const before = savedLevel();
+  if (!name) {
+    console.log(`Graut level: ${before} (choose from ${LEVELS.join(', ')})`);
+    return 0;
+  }
+  if (!LEVELS.includes(name)) throw new Error(`unknown level "${name}". Choose from: ${LEVELS.join(', ')}`);
+  fs.mkdirSync(path.dirname(LEVEL_FILE), { recursive: true });
+  fs.writeFileSync(LEVEL_FILE, `${name}\n`);
+  for (const agent of pickAgents(opts.agents)) {
+    const { memory } = AGENTS[agent];
+    // Files without the note are left alone, unless "off" is what removed it.
+    if (memory && (isActive(memory) || (before === 'off' && !opts['no-activate']))) {
+      activate(memory, name);
+      console.log(`${agent}: ${memory} updated`);
+    }
+  }
+  console.log(`Graut level: ${name}\n\n${SAY.done}`);
+  return 0;
 }
 
 async function install(opts) {
@@ -284,7 +323,7 @@ async function install(opts) {
         for (const name of blocked) fs.rmSync(path.join(dest, 'packs', name), { recursive: true, force: true });
         console.log(`${agent}: graut installed with ${havePacks(path.join(dest, 'packs'), names).length} skills inside`);
       }
-      if (memory && !opts['no-activate']) activate(memory);
+      if (memory && !opts['no-activate']) activate(memory, savedLevel());
     } catch (error) {
       failed.push(`${agent}: ${error.message}`);
     }
@@ -311,10 +350,7 @@ function uninstall(opts) {
         removed++;
       }
     }
-    if (memory && fs.existsSync(memory)) {
-      const old = fs.readFileSync(memory, 'utf8');
-      if (BLOCK_RE.test(old)) fs.writeFileSync(memory, old.replace(BLOCK_RE, ''));
-    }
+    if (memory) deactivate(memory);
   }
   if (!opts.agents) fs.rmSync(at('.graut'), { recursive: true, force: true });
   console.log(`Removed ${removed} folders Graut installed. Your own skills were not touched.`);
@@ -342,8 +378,8 @@ function doctor(opts) {
 
 // Claude Code runs this when a session starts. Silent if CLAUDE.md already says the same.
 function hook() {
-  const { memory } = AGENTS.claude;
-  if (!(fs.existsSync(memory) && BLOCK_RE.test(fs.readFileSync(memory, 'utf8')))) console.log(BLOCK);
+  const text = block(savedLevel());
+  if (text && !read(AGENTS.claude.memory).includes(text)) console.log(text);
   return 0;
 }
 
@@ -454,6 +490,7 @@ Run as: ${CMD} [command]
   doctor               show what is installed and what is missing
   find <words>         search skills on this machine and in the catalogs
   add <id>             scan one catalog skill and give it to Graut
+  level [name]         show or set how hard Graut works: ${LEVELS.join(', ')}
   uninstall            remove everything Graut installed
 
 Options
@@ -488,6 +525,7 @@ function main(argv) {
   if (command === 'uninstall') return uninstall(values);
   if (command === 'doctor') return doctor(values);
   if (command === 'hook') return hook();
+  if (command === 'level') return level(rest[0], values);
   if (command === 'find') return find(rest);
   if (command === 'add' && rest[0]) return add(rest[0], values);
   console.log(HELP);

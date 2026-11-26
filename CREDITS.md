@@ -1,6 +1,6 @@
 # Credits and licenses
 
-Graut (the master skill, installer and meme lines) is by [Pranjal240](https://github.com/Pranjal240). The specialist work is other people's open source projects, copied here from the commits pinned in [sources.json](skills/graut/sources.json). Their copyright stays theirs, and each folder carries the author's license (`UPSTREAM-LICENSE`, plus `UPSTREAM-NOTICE*` where one exists).
+Graut (the master skill, playbooks, panel, installer and meme lines) is by Pranjal ([Pranjal240](https://github.com/Pranjal240)). The specialist work is other people's open source projects, copied here from the commits pinned in [sources.json](skills/graut/sources.json). Their copyright stays theirs, and each folder carries the author's license (`UPSTREAM-LICENSE`, plus `UPSTREAM-NOTICE*` where one exists).
 
 | Project | Author | License | Folders in `skills/graut/packs/` |
 |---|---|---|---|
@@ -18,6 +18,9 @@ Graut (the master skill, installer and meme lines) is by [Pranjal240](https://gi
 | [claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice) | shanraisshan | MIT | `../library/claude-code-best-practice` |
 
 ## Media and fonts
+
+- `assets/graut-logo.jpg` and `assets/icon.jpg`: a frame from a widely shared internet meme. It shows a real person, and the rights belong to them and to whoever recorded it. It is not covered by this repository's license and will be removed on request.
+- `assets/example-website.jpg`: a screenshot of a page Graut built.
 
 - Music in `brag`: "Happy Beats / Business Moves" Vol. 1, 9, 10, 11, 12 by Sascha Ende, [ende.app](https://ende.app/en), [CC BY 4.0](https://ende.app/en/standard-license). Credit it in videos that use it: "Music: Sascha Ende, ende.app (CC BY 4.0)".
 - Sound effects in `brag`: [Kenney](https://kenney.nl/) and unicae_games, CC0.

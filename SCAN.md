@@ -4,9 +4,9 @@ NVIDIA SkillSpector 2.13.7, static analysis only (`--no-llm`), run on 2026-11-27
 
 ## Passed (22)
 
-`graut` (score 34, caution: it mentions `sudo` in install hints and `npx github`), `skill-inspector`, the six `ponytail` skills, `gravitas-highstakes`, `gravitas-python`, `gravitas-typescript`, `banner-design`, `design-system`, `slides`, `ui-styling`, `brag`, `brag-slim`, `hyperframes-registry`, `camera-3d-captions`, `prod-by-claude`, `x-posting-license`, `huashu-nuwa`.
+`graut` (score 42, caution: `sudo` in install hints, unpinned `npx` commands, and one line of the web playbook), `skill-inspector`, the six `ponytail` skills, `gravitas-highstakes`, `gravitas-python`, `gravitas-typescript`, `banner-design`, `design-system`, `slides`, `ui-styling`, `brag`, `brag-slim`, `hyperframes-registry`, `camera-3d-captions`, `prod-by-claude`, `x-posting-license`, `huashu-nuwa`.
 
-`graut` was scanned without its `packs` and `library` folders: the packs are listed here one by one, and the library is search data from the catalogs. Each pack was scanned under its original file name, `SKILL.md`.
+`graut` was scanned with its panel and playbooks, without its `packs` and `library` folders: the packs are listed here one by one, and the library is search data from the catalogs. Each pack was scanned under its original file name, `SKILL.md`.
 
 ## Rated high risk (13)
 
@@ -49,6 +49,6 @@ Not run: the `impeccable` engine and the HyperFrames command line (both are down
 ## Do it yourself
 
 ```bash
-npx github:Pranjal240/Graut --scan     # scan, report, install
-npx github:Pranjal240/Graut --strict   # install only what passes
+npx graut --scan     # scan, report, install
+npx graut --strict   # install only what passes
 ```

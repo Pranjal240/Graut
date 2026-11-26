@@ -1,5 +1,6 @@
 {
-  "description": "Tells Claude at session start to use Graut",
+  "description": "Graut: the panel, and a reminder to Claude at session start",
+  "modules": ["./panel.tsx"],
   "hooks": {
     "SessionStart": [
       {

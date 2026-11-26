@@ -1,12 +1,14 @@
 {
   "name": "graut",
   "description": "Graut master skill",
-  "owner": { "name": "Pranjal240" },
+  "owner": {
+    "name": "Pranjal"
+  },
   "plugins": [
     {
       "name": "graut",
       "source": "./",
-      "description": "Har problem me Graut bhar denge: one master skill for every task"
+      "description": "Web, AI, machine learning or any software problem: sabme Graut bhar denge. One skill that plans, builds and verifies, by Pranjal"
     }
   ]
 }

@@ -25,6 +25,7 @@ const skill = (name, description) => `---\nname: ${name}\ndescription: ${descrip
 
 fs.cpSync(path.join(GRAUT, 'scripts'), path.join(bundle, 'scripts'), { recursive: true });
 write(path.join(bundle, 'SKILL.md'), skill('graut', 'master'));
+fs.copyFileSync(path.join(GRAUT, 'levels.json'), path.join(bundle, 'levels.json'));
 write(path.join(bundle, 'packs', 'alpha', 'PACK.md'), skill('alpha', 'makes walrus things'));
 write(path.join(bundle, 'packs', 'beta', 'PACK.md'), skill('beta', 'bundled'));
 const index = JSON.stringify([
@@ -89,6 +90,21 @@ test('install leaves one graut skill, merges old copies and keeps user folders',
   assert.strictEqual(read(memory).match(/graut:start/g).length, 1);
   assert.strictEqual(read(`${memory}.graut.bak`), 'my own rules\n');
   assert.strictEqual(graut('hook').stdout, '');
+});
+
+test('level changes the note in instruction files, and off removes it', () => {
+  const set = (name) => graut('level', name, '--agents', 'claude');
+  assert.match(graut('level').stdout, /Graut level: full/);
+  assert.strictEqual(set('ultra').status, 0);
+  assert.match(read(memory), /Graut level: ultra/);
+  assert.strictEqual(graut('hook').stdout, '');
+  set('off');
+  assert.strictEqual(read(memory), 'my own rules\n');
+  assert.strictEqual(graut('hook').stdout, '');
+  set('lite');
+  assert.match(read(memory), /Graut level: lite/);
+  assert.match(set('turbo').stderr, /unknown level/);
+  set('full');
 });
 
 test('find searches packs, other local skills and the catalog', () => {
@@ -158,6 +174,10 @@ test('agents see exactly one skill, and every pack inside it is complete', () =>
     assert.ok(router.includes(`\`${name}\``), `router does not mention ${name}`);
     assert.ok(!pack.includes('CLAUDE_PLUGIN_ROOT}/.claude'), `${name} path`);
   }
+  const playbooks = fs.readdirSync(path.join(GRAUT, 'playbooks')).sort();
+  assert.deepStrictEqual(playbooks, ['ai.md', 'debug.md', 'ml.md', 'web.md']);
+  for (const file of playbooks) assert.ok(router.includes(`\`${file}\``), `router does not mention ${file}`);
+  assert.deepStrictEqual(Object.keys(json(path.join(GRAUT, 'levels.json'))), ['lite', 'full', 'ultra']);
   for (const source of sources.filter((s) => s.library)) {
     for (const item of source.library) {
       assert.ok(fs.existsSync(path.join(GRAUT, 'library', source.id, item)), `${source.id}/${item}`);

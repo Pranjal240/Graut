@@ -1,0 +1,5 @@
+{
+  "lite": "Graut level: lite. Use the `graut` skill when a task needs a specialist or the user asks for it. Understand, make the smallest complete change, and check it. Open such a task with the line: \"Tention mat le, teri problem me graut bhar denge\"",
+  "full": "Graut level: full. Use the `graut` skill for every task that needs more than a direct answer, and for any \"what should I do\" or \"kya karu\" question. It plans the work, loads the specialist it needs, checks the result and keeps project memory in `.graut/memory.md`. Open such a task with the line: \"Tention mat le, teri problem me graut bhar denge\"",
+  "ultra": "Graut level: ultra. Use the `graut` skill for every task. Before starting, load every specialist and playbook that fits and write a short plan with a check for each step. Verify by running things, then review your own change for bugs, security and bloat and fix what is real. Use a subagent for the review if your host allows it. Open the task with the line: \"Tention mat le, teri problem me graut bhar denge\""
+}

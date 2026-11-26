@@ -1,62 +1,81 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/Pranjal240/Graut/main/assets/graut-logo.jpg" alt="Graut logo: the 'graut bhar denge' meme" width="340">
+
 # Graut
 
-> **Tention mat le, teri problem me graut bhar denge.**
+### Tention mat le, teri problem me graut bhar denge.
 
-One skill for Claude Code, Codex, Antigravity and other coding agents. Say what you want in a few words. Graut works out what the job needs, loads the right specialist out of 34 bundled ones, builds it, checks it, and remembers your project.
+**Web development, AI development, machine learning ya kuch bhi: sabme Graut bhar denge, ye skill use karke.**<br>
+Koi bhi software problem ho, usme graut bhar denge aur solve kar denge.
 
-Your agent sees **one** skill. The specialists are read only when a task needs them, so in Claude Code every session pays about 100 tokens for the skill list plus a short reminder, instead of about 3,500 for 35 separate skills.
+by **Pranjal**
+
+```bash
+npx graut
+```
+
+</div>
+
+---
+
+## What is Graut?
+
+One skill for Claude Code, Codex, Antigravity and other coding agents. Say your problem in a few words. Graut works out what it really needs, loads the right expertise, builds it, **checks it before calling it solved**, and remembers your project.
+
+- **Any software problem.** Websites, APIs, bugs, AI apps, ML models, design, launch videos.
+- **One skill, not thirty.** Your agent sees only `graut`. Everything else is read when a task needs it, so sessions stay light.
+- **Any model.** A seven-step short version keeps small models on track; bigger ones get the full playbook.
+- **A live panel** in Claude Code, with your level and what the session has used.
 
 ## Install
 
-Pick one.
+| How | Command |
+|---|---|
+| **Recommended** | `npx graut` |
+| Install globally | `npm install -g graut` then `graut` |
+| Claude Code plugin (with the panel) | `/plugin marketplace add Pranjal240/Graut` then `/plugin install graut@graut` |
+| `skills` CLI | `npx skills add Pranjal240/Graut -g` |
+| From GitHub | `npx --allow-git=all github:Pranjal240/Graut` |
+| Clone | `git clone https://github.com/Pranjal240/Graut.git` then `node Graut/skills/graut/scripts/graut.js` |
+| Paste into an agent | `Install the skill from https://github.com/Pranjal240/Graut : copy the whole skills/graut folder into your skills folder.` |
 
-**One command** (adds Graut to every agent on your machine and turns it on)
+Restart your agent afterwards. You need Node.js 18.3 or newer.
 
-```bash
-npx github:Pranjal240/Graut
+`npm install graut` only downloads the package: run `npx graut` to set it up (npm does not run setup scripts for you). `npx graut` and the clone route also install missing tools and switch Graut on for every agent found; after the other routes, say "set up graut".
+
+## The panel
+
+With the Claude Code plugin, Graut sits above the prompt:
+
+```text
+GRAUT by Pranjal   Tention mat le, teri problem me graut bhar denge
+[off] [lite] [* full] [ultra] | [Review] [Audit] [Doctor] [Copy] [Compact]
+cost $0.42 last $0.11   tokens 1.2M   time 4m 10s 3 turns   tests 11 passed   skills ui-ux-pro-max
 ```
 
-**Claude Code plugin**
+| Level | What Graut does |
+|---|---|
+| `off` | Stays out of the way |
+| `lite` | The short version; specialists only when needed |
+| `full` | Everything (default) |
+| `ultra` | Loads every matching specialist, plans in writing, verifies, reviews its own work |
 
-```
-/plugin marketplace add Pranjal240/Graut
-/plugin install graut@graut
-```
+Other agents: `npx graut level ultra`.
 
-**The `skills` CLI**
-
-```bash
-npx skills add Pranjal240/Graut -g
-```
-
-**Copy a link into your agent**
-
-```
-Install the skill from https://github.com/Pranjal240/Graut : copy the whole skills/graut folder into your skills folder.
-```
-
-**Clone**
-
-```bash
-git clone https://github.com/Pranjal240/Graut.git
-node Graut/skills/graut/scripts/graut.js
-```
-
-Then restart your agent. The `npx` and clone routes need Node.js 18.3+ and git. The plugin's start-of-session reminder needs Node.js too.
-
-The first and last routes also install missing tools and add the always-on note for your agents. After the other routes, say "set up graut".
+**Review** and **Audit** ask Graut for a report on your changes or project. **Doctor** shows what is missing. **Copy** puts the session figures on your clipboard. **Compact** shrinks the conversation. Cost is Claude Code's own estimate.
 
 ## Use
 
-```
+```text
 /graut tests fail, fix it
 /graut build a landing page for my chai shop
-/graut brag
-/graut impeccable audit the dashboard
+/graut my RAG bot gives wrong answers
+/graut my model has 99% accuracy but fails in production
 kya karu? my app is slow
 ```
 
-With the plugin, the command is `/graut:graut`.
+With the plugin the command is `/graut:graut`.
 
 | When | Graut says |
 |---|---|
@@ -65,21 +84,29 @@ With the plugin, the command is `/graut:graut`.
 | It needs something from you | teri problem me graut to bhar diya, par isse kam nhi chalega (do this: ...) |
 | Solved and checked | le bhai isme graut bhardiya |
 
+## From four words to a website
+
+A one-line page and the prompt "make this website good" gave this (the menu items are samples, and the page says so):
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/Pranjal240/Graut/main/assets/example-website.jpg" alt="A chai cart ordering page built by Graut" width="720">
+</div>
+
 ## How it works
 
 1. **Understand** a short request and fill in sensible defaults.
 2. **Plan** to the size of the job.
-3. **Build** the smallest complete change.
-4. **Prove** it by running something, never by rereading its own work.
-5. **Load** a specialist only when it adds depth, one at a time.
+3. **Load** the playbook or specialist that fits, one at a time.
+4. **Build** the smallest complete change.
+5. **Prove** it by running something, never by rereading its own work.
 6. **Remember** what matters in `.graut/memory.md`.
-
-Websites and UI work get the design chain automatically: `ui-ux-pro-max` for the design system, `impeccable` for audit and polish.
 
 ## What is inside
 
-| For | Specialists |
+| For | Inside Graut |
 |---|---|
+| Web, AI apps, machine learning, debugging | Graut playbooks |
+| Routing, chaining, subagents, memory, new skills and agents | `graut` |
 | Writing less code | `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` |
 | Correct engineering | `gravitas`, `gravitas-highstakes`, `gravitas-python`, `gravitas-typescript` |
 | Design | `ui-ux-pro-max`, `impeccable`, `design`, `brand`, `design-system`, `ui-styling`, `banner-design`, `slides` |
@@ -90,12 +117,13 @@ Websites and UI work get the design chain automatically: `ui-ux-pro-max` for the
 
 ## Commands
 
-Prefix each with `npx github:Pranjal240/Graut`.
+Prefix each with `npx graut`.
 
 | Command | Does |
 |---|---|
 | `install` (default) | set up or update |
 | `doctor` | show what is installed and missing |
+| `level [name]` | show or change the level |
 | `find <words>` | search local skills and catalogs |
 | `add <id>` | scan one catalog skill and give it to Graut |
 | `uninstall` | remove what Graut installed |
@@ -113,7 +141,7 @@ Prefix each with `npx github:Pranjal240/Graut`.
 
 1. Installs missing git, uv, Python and FFmpeg through winget or Homebrew, if you run it in a terminal. Elsewhere it prints the command.
 2. Installs SkillSpector with uv.
-3. Copies the `graut` folder into each agent's skills folder. A `graut` folder of your own is left alone. Separate copies made by Graut 1.0 are removed.
+3. Copies the `graut` folder into each agent's skills folder. A `graut` folder of your own is left alone.
 4. Adds a short marked block to `CLAUDE.md`, `AGENTS.md` and `GEMINI.md` (the old file is saved as `.graut.bak`).
 
 Supported: Claude Code, Codex, Antigravity, Gemini CLI, Cursor, OpenCode, GitHub Copilot CLI, Windsurf, Kiro. The always-on block is added for Claude Code, Codex, Antigravity and Gemini CLI; the others load Graut when the task matches.
@@ -124,16 +152,16 @@ Supported: Claude Code, Codex, Antigravity, Gemini CLI, Cursor, OpenCode, GitHub
 - A static scan rates some specialists high risk. [SCAN.md](SCAN.md) lists them and why. Use `--strict` to leave them out.
 - Some specialists use the network or your API keys when you run them: `impeccable` downloads its engine on first run, the HyperFrames tools are fetched with `npx`, and `design` calls the image provider you give it a key for. Graut asks before any of them sends usage data.
 - `session-story` and `day-in-my-life` read your local agent transcripts to make their films.
-- Graut does not install other projects' hooks.
 
 ## Maintaining
 
 ```bash
 npm test
+claude plugin test .
 ```
 
 To update a specialist, change its `sha` in [sources.json](skills/graut/sources.json), run `npm run sync`, read the diff, then commit.
 
-## License
+## License and credits
 
-Graut's own files are MIT. Every bundled specialist keeps its author's license, shipped in its folder. See [CREDITS.md](CREDITS.md).
+Graut, its playbooks, panel and installer are by Pranjal, under the MIT license. The bundled specialists are open source work by their own authors, each shipped with its license: see [CREDITS.md](CREDITS.md).

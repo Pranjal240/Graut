@@ -1,14 +1,14 @@
 {
-  "name": "graut-bhar-de",
-  "version": "1.1.1",
-  "description": "Har problem me Graut bhar denge: one skill that plans, builds and verifies, with 34 specialists loaded on demand",
+  "name": "graut",
+  "version": "1.2.0",
+  "description": "Web, AI, machine learning or any software problem: sabme Graut bhar denge. One skill that plans, builds and verifies, by Pranjal",
   "bin": {
-    "graut-bhar-de": "skills/graut/scripts/graut.js",
     "graut": "skills/graut/scripts/graut.js"
   },
   "files": [
     "skills",
     "hooks",
+    "types",
     ".claude-plugin",
     "CREDITS.md",
     "SCAN.md"
@@ -26,9 +26,13 @@
     "codex",
     "antigravity",
     "gemini-cli",
-    "cursor"
+    "cursor",
+    "web-development",
+    "ai",
+    "machine-learning",
+    "hinglish"
   ],
-  "author": "Pranjal240",
+  "author": "Pranjal (https://github.com/Pranjal240)",
   "license": "SEE LICENSE IN CREDITS.md",
   "repository": {
     "type": "git",
