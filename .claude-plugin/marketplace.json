@@ -1,0 +1,12 @@
+{
+  "name": "graut",
+  "description": "Graut master skill",
+  "owner": { "name": "Pranjal240" },
+  "plugins": [
+    {
+      "name": "graut",
+      "source": "./",
+      "description": "Har problem me Graut bhar denge: one master skill for every task"
+    }
+  ]
+}

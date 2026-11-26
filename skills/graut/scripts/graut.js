@@ -1,0 +1,476 @@
+#!/usr/bin/env node
+'use strict';
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawn, spawnSync } = require('child_process');
+const { parseArgs } = require('util');
+
+const SKILL_DIR = path.dirname(__dirname);
+const BUNDLE = path.dirname(SKILL_DIR); // the specialist skills ship next to this one
+// GRAUT_HOME points everything at a sandbox (used by tests); agent env overrides are ignored then.
+const HOME = process.env.GRAUT_HOME || os.homedir();
+const env = (name) => (process.env.GRAUT_HOME ? undefined : process.env[name]);
+const at = (...p) => path.join(HOME, ...p);
+const CLAUDE = env('CLAUDE_CONFIG_DIR') || at('.claude');
+const CODEX = env('CODEX_HOME') || at('.codex');
+const CONFIG = env('XDG_CONFIG_HOME') || at('.config');
+const VENDOR = at('.graut', 'vendor');
+const STAGE = at('.graut', 'staging');
+const MANIFEST = process.env.GRAUT_SOURCES || path.join(SKILL_DIR, 'sources.json');
+const CMD = 'npx github:Pranjal240/Graut';
+
+const SAY = {
+  start: 'Tention mat le, teri problem me graut bhar denge',
+  need: (what) => `teri problem me graut to bhar diya, par isse kam nhi chalega (do this: ${what})`,
+  done: 'le bhai isme graut bhardiya',
+  help: 'Isme Graut bhar denge',
+};
+
+// detect: paths that prove the agent exists. memory: global instruction file, loaded every session.
+const AGENTS = {
+  claude: { detect: [CLAUDE], skills: path.join(CLAUDE, 'skills'), memory: path.join(CLAUDE, 'CLAUDE.md') },
+  codex: { detect: [CODEX], skills: at('.agents', 'skills'), memory: path.join(CODEX, 'AGENTS.md') },
+  antigravity: {
+    detect: ['antigravity', 'antigravity-cli', 'antigravity-ide'].map((d) => at('.gemini', d)),
+    skills: at('.gemini', 'config', 'skills'),
+    memory: at('.gemini', 'GEMINI.md'),
+  },
+  gemini: { detect: [at('.gemini', 'settings.json')], skills: at('.gemini', 'skills'), memory: at('.gemini', 'GEMINI.md') },
+  cursor: { detect: [at('.cursor')], skills: at('.cursor', 'skills') },
+  opencode: { detect: [path.join(CONFIG, 'opencode')], skills: path.join(CONFIG, 'opencode', 'skills') },
+  copilot: { detect: [at('.copilot')], skills: at('.copilot', 'skills') },
+  windsurf: { detect: [at('.codeium', 'windsurf')], skills: at('.codeium', 'windsurf', 'skills') },
+  kiro: { detect: [at('.kiro')], skills: at('.kiro', 'skills') },
+};
+
+const BLOCK = `<!-- graut:start -->
+## Graut
+For any task that builds, fixes or changes something, and for any "what should I do" or "kya karu" question, use the \`graut\` skill. It picks the specialist skill, splits the work and keeps project memory in \`.graut/memory.md\`.
+Open such a task with the line: "Tention mat le, teri problem me graut bhar denge"
+<!-- graut:end -->`;
+const BLOCK_RE = /<!-- graut:start -->[\s\S]*?<!-- graut:end -->(\r?\n)?/;
+
+// [command, version flag, winget id, brew name, apt/manual hint]
+const TOOLS = {
+  git: ['git', '--version', 'Git.Git', 'git', 'sudo apt install git'],
+  uv: ['uv', '--version', 'astral-sh.uv', 'uv', 'install uv: https://docs.astral.sh/uv/'],
+  python: ['python', '--version', 'Python.Python.3.13', 'python', 'sudo apt install python3'],
+  ffmpeg: ['ffmpeg', '-version', 'Gyan.FFmpeg', 'ffmpeg', 'sudo apt install ffmpeg'],
+};
+
+const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', ...opts });
+const works = (cmd, args) => run(cmd, args, { stdio: 'ignore' }).status === 0;
+const hasTool = (name) =>
+  works(TOOLS[name][0], [TOOLS[name][1]]) || (name === 'python' && works('python3', ['--version']));
+
+function fixFor(name) {
+  const [, , wingetId, brewName, other] = TOOLS[name];
+  if (process.platform === 'win32') return `winget install --id ${wingetId} -e`;
+  if (process.platform === 'darwin') return `brew install ${brewName}`;
+  return other;
+}
+
+// Installs a missing tool through winget or brew, only with a person at the terminal to accept prompts.
+function ensureTool(name, autoInstall) {
+  if (hasTool(name)) return true;
+  const manager = { win32: 'winget', darwin: 'brew' }[process.platform];
+  if (autoInstall && manager && process.stdin.isTTY && works(manager, ['--version'])) {
+    console.log(`\nInstalling ${name} ...`);
+    run(manager, fixFor(name).split(' ').slice(1), { stdio: 'inherit' });
+  }
+  return hasTool(name);
+}
+
+const loadManifest = () => JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+const coreNames = (manifest) => manifest.sources.flatMap((s) => Object.keys(s.skills || {}));
+
+function git(dir, ...args) {
+  const r = run('git', ['-C', dir, ...args]);
+  if (r.status !== 0) throw new Error(`git ${args[0]} failed: ${(r.stderr || String(r.error)).trim()}`);
+  return r.stdout.trim();
+}
+
+// Sparse, shallow download of exactly the pinned commit.
+function fetchSource(source, paths) {
+  const dir = path.join(VENDOR, source.id);
+  const url = /^[\w.-]+\/[\w.-]+$/.test(source.repo) ? `https://github.com/${source.repo}.git` : source.repo;
+  try {
+    if (!fs.existsSync(path.join(dir, '.git'))) {
+      fs.mkdirSync(dir, { recursive: true });
+      git(dir, 'init', '-q');
+      git(dir, 'remote', 'add', 'origin', url);
+      git(dir, 'config', 'core.autocrlf', 'false');
+      git(dir, 'config', 'core.symlinks', 'false');
+      git(dir, 'config', 'core.longpaths', 'true');
+    }
+    git(dir, 'remote', 'set-url', 'origin', url);
+    git(dir, 'sparse-checkout', 'set', '--no-cone', '/LICENSE*', '/NOTICE*', ...paths.map((p) => `/${p}`));
+    const head = run('git', ['-C', dir, 'rev-parse', '--verify', '-q', 'HEAD']).stdout.trim();
+    if (head !== source.sha) {
+      git(dir, 'fetch', '-q', '--depth', '1', '--filter=blob:none', 'origin', source.sha);
+      git(dir, 'checkout', '-q', '--force', '--detach', source.sha);
+    }
+    const missing = paths.filter((p) => !fs.existsSync(path.join(dir, p)));
+    if (missing.length) throw new Error(`not found upstream: ${missing.join(', ')}`);
+    return dir;
+  } catch (error) {
+    // A half-made download is removed; an earlier good one (with a commit) is kept.
+    if (!works('git', ['-C', dir, 'rev-parse', '--verify', '-q', 'HEAD'])) fs.rmSync(dir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+const noLinks = (file) => !fs.lstatSync(file).isSymbolicLink();
+
+// Builds one installable skill folder from a downloaded source.
+function stageSkill(source, repoDir, name, from) {
+  const stage = path.join(STAGE, source.id, name);
+  fs.rmSync(stage, { recursive: true, force: true });
+  fs.mkdirSync(stage, { recursive: true });
+  for (const item of [].concat(from)) {
+    const to = Array.isArray(from) ? path.join(stage, path.basename(item)) : stage;
+    fs.cpSync(path.join(repoDir, item), to, { recursive: true, filter: noLinks });
+  }
+  for (const file of fs.readdirSync(repoDir)) {
+    if (/^(LICENSE|NOTICE)/i.test(file)) fs.cpSync(path.join(repoDir, file), path.join(stage, `UPSTREAM-${file}`));
+  }
+  return stage;
+}
+
+// Never overwrites a skill Graut did not install: those carry no .graut marker.
+const isUsers = (dest) => fs.existsSync(dest) && !fs.existsSync(path.join(dest, '.graut'));
+
+function place(from, dest, tag) {
+  if (path.resolve(from) === path.resolve(dest) || isUsers(dest)) return 'kept';
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.cpSync(from, dest, { recursive: true, filter: noLinks });
+  fs.writeFileSync(path.join(dest, '.graut'), `${tag}\n`);
+  return 'installed';
+}
+
+function findScanner() {
+  if (works('skillspector', ['--help'])) return 'skillspector';
+  const r = run('uv', ['tool', 'dir', '--bin']);
+  if (r.status !== 0) return null;
+  const bin = path.join(r.stdout.trim(), process.platform === 'win32' ? 'skillspector.exe' : 'skillspector');
+  return fs.existsSync(bin) ? bin : null;
+}
+
+function ensureScanner(manifest) {
+  const found = findScanner();
+  if (found || !hasTool('uv')) return found;
+  const source = manifest.sources.find((s) => s.id === manifest.scanner);
+  if (!source) return null;
+  console.log('\nInstalling SkillSpector (security scanner) ...');
+  run('uv', ['tool', 'install', '--python', '3.13', `git+https://github.com/${source.repo}.git@${source.sha}`], {
+    stdio: 'inherit',
+  });
+  return findScanner();
+}
+
+// SkillSpector exit codes: 0 safe or caution, 1 high risk, anything else means the scan did not happen.
+function scan(scanner, dir) {
+  if (!scanner) return Promise.resolve('unscanned');
+  return new Promise((resolve) => {
+    const child = spawn(scanner, ['scan', dir, '--no-llm'], {
+      stdio: 'ignore',
+      timeout: 600000,
+      env: { ...process.env, PYTHONUTF8: '1' },
+    });
+    child.on('error', () => resolve('unscanned'));
+    child.on('close', (status) => resolve({ 0: 'safe', 1: 'risky' }[status] || 'unscanned'));
+  });
+}
+
+// Scans the bundled skills, several at once because each one is slow.
+async function scanAll(scanner, names) {
+  const verdicts = new Map();
+  const queue = [...names];
+  console.log(`\nScanning ${names.length} skills. This takes several minutes.`);
+  const worker = async () => {
+    while (queue.length) {
+      const name = queue.shift();
+      verdicts.set(name, await scan(scanner, path.join(BUNDLE, name)));
+      console.log(`  [${verdicts.size}/${names.length}] ${name}: ${verdicts.get(name)}`);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, os.cpus().length) }, worker));
+  return verdicts;
+}
+
+function pickAgents(list) {
+  if (list) {
+    const names = list.split(',').map((s) => s.trim()).filter(Boolean);
+    const unknown = names.filter((n) => !AGENTS[n]);
+    if (unknown.length || !names.length) {
+      throw new Error(`unknown agent "${unknown.join(', ')}". Choose from: ${Object.keys(AGENTS).join(', ')}`);
+    }
+    return names;
+  }
+  const found = Object.keys(AGENTS).filter((n) => AGENTS[n].detect.some((p) => fs.existsSync(p)));
+  return found.length ? found : ['codex']; // ~/.agents/skills is the shared fallback
+}
+
+function activate(file) {
+  const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  if (old && !BLOCK_RE.test(old)) fs.copyFileSync(file, `${file}.graut.bak`);
+  const next = BLOCK_RE.test(old)
+    ? old.replace(BLOCK_RE, () => `${BLOCK}\n`)
+    : `${old}${old && !old.endsWith('\n') ? '\n' : ''}${BLOCK}\n`;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, next);
+}
+
+async function install(opts) {
+  console.log(`\n${SAY.start}\n`);
+  const autoInstall = !opts['no-system-deps'];
+  const todo = Object.keys(TOOLS).filter((t) => !ensureTool(t, autoInstall)).map(fixFor);
+  if (Number(process.versions.node.split('.')[0]) < 22) todo.push('upgrade Node.js to 22+ for the video skills');
+
+  const manifest = loadManifest();
+  const agents = pickAgents(opts.agents);
+  console.log(`Agents: ${agents.join(', ')}`);
+  const scanner = autoInstall ? ensureScanner(manifest) : findScanner();
+
+  // A bundled skill always carries its upstream license; that tells it apart from anything else next door.
+  const names = coreNames(manifest);
+  const bundled = names.filter((n) => fs.existsSync(path.join(BUNDLE, n, 'UPSTREAM-LICENSE')));
+  if (bundled.length < names.length) {
+    todo.push(`${names.length - bundled.length} skills are not next to this one; run: ${CMD}`);
+  }
+
+  let verdicts = new Map();
+  if (opts.scan || opts.strict) {
+    if (scanner) verdicts = await scanAll(scanner, bundled);
+    else todo.push('get SkillSpector running (needs uv), then run install again');
+  }
+  const flagged = bundled.filter((n) => verdicts.get(n) === 'risky');
+  const blocked = opts.strict ? bundled.filter((n) => verdicts.get(n) !== 'safe') : [];
+
+  const counts = { installed: 0, kept: 0 };
+  const failed = [];
+  for (const agent of agents) {
+    // Installed as a Claude plugin, Claude already has every skill; a second copy would duplicate them.
+    const viaPlugin = agent === 'claude' && SKILL_DIR.startsWith(path.join(CLAUDE, 'plugins') + path.sep);
+    for (const name of viaPlugin ? [] : ['graut', ...bundled]) {
+      const dest = path.join(AGENTS[agent].skills, name);
+      try {
+        if (blocked.includes(name)) {
+          if (!isUsers(dest)) fs.rmSync(dest, { recursive: true, force: true });
+          continue;
+        }
+        const from = name === 'graut' ? SKILL_DIR : path.join(BUNDLE, name);
+        counts[place(from, dest, 'Pranjal240/Graut')]++;
+      } catch (error) {
+        failed.push(`${name} -> ${dest}: ${error.message}`);
+      }
+    }
+    if (AGENTS[agent].memory && !opts['no-activate']) activate(AGENTS[agent].memory);
+  }
+
+  console.log(`\nSkills: ${counts.installed} installed, ${counts.kept} already there`);
+  if (flagged.length) console.log(`SkillSpector rated these high risk: ${flagged.join(', ')} (see SCAN.md)`);
+  if (blocked.length) console.log(`Not installed because they did not pass the scan (--strict): ${blocked.join(', ')}`);
+  for (const line of failed) console.log(`Failed: ${line}`);
+  if (failed.length) todo.push('fix the failures above and run install again');
+  console.log(`\n${todo.length ? SAY.need(todo.join(' ; ')) : SAY.done}`);
+  console.log('Restart your agent to load the skills.');
+  return failed.length ? 1 : 0;
+}
+
+function uninstall(opts) {
+  const agents = opts.agents ? pickAgents(opts.agents) : Object.keys(AGENTS);
+  let removed = 0;
+  for (const agent of agents) {
+    const { skills, memory } = AGENTS[agent];
+    for (const name of fs.existsSync(skills) ? fs.readdirSync(skills) : []) {
+      if (fs.existsSync(path.join(skills, name, '.graut'))) {
+        fs.rmSync(path.join(skills, name), { recursive: true, force: true });
+        removed++;
+      }
+    }
+    if (memory && fs.existsSync(memory)) {
+      const old = fs.readFileSync(memory, 'utf8');
+      if (BLOCK_RE.test(old)) fs.writeFileSync(memory, old.replace(BLOCK_RE, ''));
+    }
+  }
+  if (!opts.agents) fs.rmSync(at('.graut'), { recursive: true, force: true });
+  console.log(`Removed ${removed} skills Graut installed. Your own skills were not touched.`);
+  console.log('SkillSpector stays; remove it with: uv tool uninstall skillspector');
+  return 0;
+}
+
+function doctor(opts) {
+  const missing = Object.keys(TOOLS).filter((t) => !hasTool(t));
+  for (const tool of Object.keys(TOOLS)) console.log(`${missing.includes(tool) ? 'MISSING' : 'ok     '} ${tool}`);
+  console.log(`${findScanner() ? 'ok     ' : 'MISSING'} skillspector`);
+  const wanted = ['graut', ...coreNames(loadManifest())];
+  let absent = 0;
+  for (const agent of pickAgents(opts.agents)) {
+    const gone = wanted.filter((n) => !fs.existsSync(path.join(AGENTS[agent].skills, n, 'SKILL.md')));
+    absent += gone.length;
+    console.log(`${agent}: ${wanted.length - gone.length}/${wanted.length} skills${gone.length ? ` (missing: ${gone.join(', ')})` : ''}`);
+  }
+  const todo = missing.map(fixFor);
+  if (absent || !findScanner()) todo.push(`run: ${CMD}`);
+  console.log(`\n${todo.length ? SAY.need(todo.join(' ; ')) : SAY.done}`);
+  return todo.length ? 1 : 0;
+}
+
+// Skill and catalog text is untrusted: strip terminal control characters before printing.
+const clean = (text) => String(text || '').replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').trim().slice(0, 160);
+
+function readLibrary(id, file) {
+  const full = path.join(SKILL_DIR, 'library', id, file);
+  return fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null;
+}
+
+// Every skill already on this machine: all agents, this project, and the bundle.
+function localSkills() {
+  const project = ['.claude', '.agents', '.agent'].map((d) => path.resolve(d, 'skills'));
+  const dirs = [...project, ...Object.values(AGENTS).map((a) => a.skills), BUNDLE];
+  const found = new Map();
+  for (const dir of dirs) {
+    for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+      const file = path.join(dir, name, 'SKILL.md');
+      if (found.has(name) || !fs.existsSync(file)) continue;
+      const head = fs.readFileSync(file, 'utf8').split(/^---\s*$/m)[1] || '';
+      // description may continue on indented lines
+      const text = /^description:[ \t]*[>|]?-?(.*(?:\r?\n[ \t]+.*)*)/m.exec(head);
+      found.set(name, { name, file, description: text ? text[1].replace(/\s+/g, ' ') : '' });
+    }
+  }
+  return [...found.values()];
+}
+
+function rank(items, terms, limit) {
+  return items
+    .map((item) => {
+      const title = `${item.id || ''} ${item.name}`.toLowerCase();
+      const body = `${item.category || ''} ${item.description}`.toLowerCase();
+      // matching more of the words outranks matching one word in the title
+      const points = (t) => (title.includes(t) ? 3 : 0) + (body.includes(t) ? 1 : 0);
+      return { item, score: terms.reduce((n, t) => n + (points(t) ? 10 + points(t) : 0), 0) };
+    })
+    .filter((h) => h.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((h) => h.item);
+}
+
+function find(words) {
+  const terms = words.join(' ').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) {
+    console.log(SAY.need(`say what you need: ${CMD} find "pdf tables"`));
+    return 1;
+  }
+  const local = rank(localSkills(), terms, 8);
+  if (local.length) console.log('Already on this machine (read the file and use it):');
+  for (const s of local) console.log(`${clean(s.name)}  ${s.file}\n    ${clean(s.description)}`);
+
+  const { catalog } = loadManifest();
+  const remote = rank(JSON.parse(readLibrary(catalog, 'skills_index.json') || '[]'), terms, 10);
+  if (remote.length) console.log('\nIn the catalog (not installed yet):');
+  for (const s of remote) console.log(`${clean(s.id)}  [risk: ${clean(s.risk)}]\n    ${clean(s.description)}`);
+  if (remote.length) console.log(`\nInstall one with: ${CMD} add <id>`);
+
+  const links = (readLibrary('awesome-agent-skills', 'README.md') || '')
+    .split('\n')
+    .filter((l) => l.startsWith('- **[') && terms.every((t) => l.toLowerCase().includes(t)))
+    .slice(0, 5);
+  if (links.length) console.log(`\nAlso listed by VoltAgent (read before installing):\n${links.map(clean).join('\n')}`);
+  if (!local.length && !remote.length && !links.length) console.log('Nothing found. Try other words.');
+  return 0;
+}
+
+async function add(id, opts) {
+  const manifest = loadManifest();
+  const source = manifest.sources.find((s) => s.id === manifest.catalog);
+  const entry = JSON.parse(readLibrary(source.id, 'skills_index.json') || '[]').find((s) => s.id === id);
+  if (!entry) throw new Error(`no catalog skill with id "${id}". Search with: ${CMD} find <words>`);
+  // The catalog is third-party data, so its path is validated before it reaches git or the file system.
+  if (!/^skills(\/[A-Za-z0-9_][A-Za-z0-9._-]*)+$/.test(entry.path)) throw new Error('unsafe path in catalog entry');
+  const name = path.posix.basename(entry.path);
+  if (name === 'graut' || coreNames(manifest).includes(name)) {
+    throw new Error(`"${name}" is a Graut core skill and is not replaced from the catalog`);
+  }
+  if (!ensureTool('git', false)) throw new Error(fixFor('git'));
+  const scanner = ensureScanner(manifest);
+  const stage = stageSkill(source, fetchSource(source, [entry.path]), name, entry.path);
+  try {
+    const verdict = await scan(scanner, stage);
+    if (verdict !== 'safe' && !opts['allow-risky']) {
+      const why = verdict === 'risky' ? 'SkillSpector rated it high risk' : 'it could not be scanned';
+      console.log(SAY.need(`${why}. Read it, and only if you trust it run: ${CMD} add ${id} --allow-risky`));
+      return 1;
+    }
+    for (const agent of pickAgents(opts.agents)) {
+      console.log(`${agent}: ${place(stage, path.join(AGENTS[agent].skills, name), `${source.repo}@${source.sha}`)}`);
+    }
+    console.log(`\n${SAY.done}`);
+    return 0;
+  } finally {
+    fs.rmSync(stage, { recursive: true, force: true });
+  }
+}
+
+const HELP = `${SAY.help}
+
+Run as: ${CMD} [command]
+
+  install (default)    copy every skill into your agents and turn Graut on
+  doctor               show what is installed and what is missing
+  find <words>         search skills on this machine and in the catalogs
+  add <id>             scan and install one catalog skill
+  uninstall            remove everything Graut installed
+
+Options
+  --agents a,b         ${Object.keys(AGENTS).join(', ')} (default: every agent found)
+  --no-activate        do not edit CLAUDE.md / AGENTS.md / GEMINI.md
+  --no-system-deps     do not install git, uv, python, ffmpeg or SkillSpector
+  --scan               scan the bundled skills with SkillSpector before installing
+  --strict             scan, and install only the skills that pass
+  --allow-risky        with add: install even if the scan fails or is missing`;
+
+function main(argv) {
+  const flag = { type: 'boolean' };
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      agents: { type: 'string' },
+      'no-activate': flag,
+      'no-system-deps': flag,
+      scan: flag,
+      strict: flag,
+      'allow-risky': flag,
+      help: { type: 'boolean', short: 'h' },
+    },
+  });
+  const [command = 'install', ...rest] = positionals;
+  if (values.help || command === 'help') {
+    console.log(HELP);
+    return 0;
+  }
+  if (command === 'install') return install(values);
+  if (command === 'uninstall') return uninstall(values);
+  if (command === 'doctor') return doctor(values);
+  if (command === 'find') return find(rest);
+  if (command === 'add' && rest[0]) return add(rest[0], values);
+  console.log(HELP);
+  return 1;
+}
+
+if (require.main === module) {
+  (async () => {
+    try {
+      process.exitCode = await main(process.argv.slice(2));
+    } catch (error) {
+      console.error(SAY.need(error.message));
+      process.exitCode = 1;
+    }
+  })();
+} else {
+  module.exports = { fetchSource, stageSkill, loadManifest };
+}

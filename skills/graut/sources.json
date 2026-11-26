@@ -1,0 +1,113 @@
+{
+  "scanner": "skillspector",
+  "catalog": "agentic-awesome-skills",
+  "sources": [
+    {
+      "id": "skillspector",
+      "repo": "NVIDIA/SkillSpector",
+      "sha": "02894ec5b8a0a70637df5a6b45763de92940cedd",
+      "skills": { "skill-inspector": "skills/skill-inspector" }
+    },
+    {
+      "id": "ponytail",
+      "repo": "DietrichGebert/ponytail",
+      "sha": "ebd8654c2c627f721eb8f9c0d1bd4090a29f9e10",
+      "skills": {
+        "ponytail": "skills/ponytail",
+        "ponytail-audit": "skills/ponytail-audit",
+        "ponytail-debt": "skills/ponytail-debt",
+        "ponytail-gain": "skills/ponytail-gain",
+        "ponytail-help": "skills/ponytail-help",
+        "ponytail-review": "skills/ponytail-review"
+      }
+    },
+    {
+      "id": "gravitas",
+      "repo": "udaysharmadev/Gravitas",
+      "sha": "e0d22cd4f7639b1af3899bc3e70d314b2ae6339a",
+      "skills": {
+        "gravitas": "skills/gravitas",
+        "gravitas-highstakes": "skills/gravitas-highstakes",
+        "gravitas-python": "skills/gravitas-python",
+        "gravitas-typescript": "skills/gravitas-typescript"
+      }
+    },
+    {
+      "id": "ui-ux-pro-max",
+      "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sha": "3442615dcc7dcb3f70a1c9f69d5c287f37db023e",
+      "replace": { "${CLAUDE_PLUGIN_ROOT}/.claude/skills/ui-ux-pro-max": "<skill-dir>" },
+      "skills": {
+        "ui-ux-pro-max": ".claude/skills/ui-ux-pro-max",
+        "banner-design": ".claude/skills/banner-design",
+        "brand": ".claude/skills/brand",
+        "design": ".claude/skills/design",
+        "design-system": ".claude/skills/design-system",
+        "slides": ".claude/skills/slides",
+        "ui-styling": ".claude/skills/ui-styling"
+      }
+    },
+    {
+      "id": "impeccable",
+      "repo": "pbakaus/impeccable",
+      "sha": "2fc5e1459efbbf06d92c7306517c286bf12490cf",
+      "skills": { "impeccable": ".claude/skills/impeccable" }
+    },
+    {
+      "id": "brag",
+      "repo": "latent-spaces/brag",
+      "sha": "06379432a9243c951dfcc051153be18d2d261044",
+      "skills": { "brag": "skills/brag", "brag-slim": "skills/brag-slim" }
+    },
+    {
+      "id": "hyperframes",
+      "repo": "heygen-com/hyperframes",
+      "sha": "94336f7bf1cec9d07e66fecfad20737fddc34d50",
+      "skills": {
+        "hyperframes": "skills/hyperframes",
+        "hyperframes-cli": "skills/hyperframes-cli",
+        "hyperframes-registry": "skills/hyperframes-registry",
+        "media-use": "skills/media-use"
+      }
+    },
+    {
+      "id": "hyperframes-community",
+      "repo": "heygen-com/hyperframes-community-skills",
+      "sha": "ba7a0bb6d3567d124c51f6074625043bfe0b32eb",
+      "skills": {
+        "camera-3d-captions": "skills/camera-3d-captions",
+        "day-in-my-life": "skills/day-in-my-life",
+        "duo": "skills/duo",
+        "p5-paint-animation": "skills/p5-paint-animation",
+        "prod-by-claude": "skills/prod-by-claude",
+        "session-story": "skills/session-story",
+        "vox-explainer": "skills/vox-explainer",
+        "x-posting-license": "skills/x-posting-license"
+      }
+    },
+    {
+      "id": "nuwa",
+      "repo": "alchaincyf/nuwa-skill",
+      "sha": "8944932e35597bbcaf52b807e506c3900d0557c1",
+      "skills": { "huashu-nuwa": ["SKILL.md", "references", "scripts"] }
+    },
+    {
+      "id": "agentic-awesome-skills",
+      "repo": "sickn33/agentic-awesome-skills",
+      "sha": "ca18ff485998192914e1003cbc1d7489cd1c3e65",
+      "library": ["skills_index.json"]
+    },
+    {
+      "id": "awesome-agent-skills",
+      "repo": "VoltAgent/awesome-agent-skills",
+      "sha": "20c57162c790d59d35e47c1538dc534c5c59e60d",
+      "library": ["README.md"]
+    },
+    {
+      "id": "claude-code-best-practice",
+      "repo": "shanraisshan/claude-code-best-practice",
+      "sha": "c7b331e1440c83aeeb49cf97020e20e8c07c1d3c",
+      "library": ["README.md", "best-practice", "orchestration-workflow"]
+    }
+  ]
+}

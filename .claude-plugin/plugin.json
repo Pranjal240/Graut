@@ -1,0 +1,8 @@
+{
+  "name": "graut",
+  "version": "1.0.0",
+  "description": "Har problem me Graut bhar denge: a master skill that routes, splits work, keeps memory and installs specialist skills",
+  "author": { "name": "Pranjal240", "url": "https://github.com/Pranjal240" },
+  "repository": "https://github.com/Pranjal240/Graut",
+  "license": "MIT"
+}
