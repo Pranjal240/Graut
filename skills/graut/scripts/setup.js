@@ -161,4 +161,4 @@ function report(packsFolders) {
   return todo;
 }
 
-module.exports = { run, works, shell, TOOLS, hasTool, fixFor, ensureTool, addPython3, prepare, report };
+module.exports = { run, works, shell, npm, TOOLS, hasTool, fixFor, ensureTool, addPython3, prepare, report };

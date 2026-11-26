@@ -197,7 +197,7 @@ Modelled on a person: `huashu-nuwa`. Anything else: write `<name>/SKILL.md` with
 node "<GRAUT>/scripts/graut.js" doctor
 ```
 
-If a pack is missing, give the user the third line with `npx graut-bhar-de`. Full setup (missing tools, other agents, always-on) edits agent instruction files and installs software, so run `node "<GRAUT>/scripts/graut.js" install` only after the user agrees.
+If a pack is missing, give the user the third line with `npx graut-bhar-de`. Full setup (missing tools, other agents, always-on) edits agent instruction files and installs software, so run `node "<GRAUT>/scripts/graut.js" install` only after the user agrees. A newer version: `npx graut-bhar-de@latest upgrade`, also only after the user agrees.
 
 ## Always
 

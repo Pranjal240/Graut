@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { parseArgs } = require('util');
-const { run, works, shell, ensureTool, fixFor, TOOLS, prepare, report } = require('./setup.js');
+const { run, works, shell, npm, ensureTool, fixFor, TOOLS, prepare, report } = require('./setup.js');
 
 const SKILL_DIR = path.dirname(__dirname);
 // The npm package or clone this script runs from; it also holds the Claude Code plugin.
@@ -334,6 +334,26 @@ async function install(opts) {
   return failed.length ? 1 : 0;
 }
 
+// Fetches the newest release from npm and installs it over this one, with the same options.
+function upgrade(opts) {
+  if (opts.agents) pickAgents(opts.agents); // refuses unknown names before they reach a command line
+  const away = { cwd: os.tmpdir(), timeout: 600000 }; // inside a Graut clone, npx would run the clone
+  const latest = npm('npm', ['view', 'graut-bhar-de', 'version', '--prefer-online'], away).stdout?.trim();
+  if (!/^\d+\.\d+\.\d+$/.test(latest || '')) throw new Error(`check your connection, then run: ${CMD} upgrade`);
+  console.log(`Newest Graut on npm: ${latest}`);
+  const target = `graut-bhar-de@${latest}`;
+  const show = { ...away, stdio: 'inherit' };
+  // a global install would otherwise keep `npx graut` on the old version
+  const stale =
+    npm('npm', ['ls', '-g', 'graut-bhar-de', '--depth=0'], away).status === 0 &&
+    npm('npm', ['install', '-g', target], show).status !== 0;
+  const flags = Object.entries(opts).flatMap(([key, value]) => (value === true ? [`--${key}`] : [`--${key}`, value]));
+  const { status } = npm('npx', ['--yes', target, 'install', ...flags], { ...show, timeout: undefined });
+  const admin = process.platform === 'win32' ? '' : 'sudo ';
+  if (stale) console.log(`\n${SAY.need(`${admin}npm install -g ${target}`)}`);
+  return status === 0 && !stale ? 0 : 1;
+}
+
 function uninstall(opts) {
   const agents = opts.agents ? pickAgents(opts.agents) : Object.keys(AGENTS);
   let removed = 0;
@@ -507,6 +527,7 @@ const HELP = `${SAY.help}
 Run as: ${CMD} [command]
 
   install (default)    install Graut, its panel and what the skills need
+  upgrade              get the newest version and install it
   doctor               show what is installed and what is missing
   find <words>         search skills on this machine and in the catalogs
   add <id>             scan one catalog skill and give it to Graut
@@ -540,6 +561,7 @@ function main(argv) {
     return 0;
   }
   if (command === 'install') return install(values);
+  if (command === 'upgrade') return upgrade(values);
   if (command === 'uninstall') return uninstall(values);
   if (command === 'doctor') return doctor(values);
   if (command === 'hook') return hook();

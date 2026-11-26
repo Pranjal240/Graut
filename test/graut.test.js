@@ -266,3 +266,43 @@ test('release versions agree and the plugin hook points at the script', () => {
   assert.strictEqual(json(path.join(ROOT, '.claude-plugin', 'plugin.json')).version, version);
   assert.match(read(ROOT, 'hooks', 'hooks.json'), /skills\/graut\/scripts\/graut\.js\\" hook/);
 });
+
+test('upgrade installs the newest release and refreshes a global install', () => {
+  const bin = path.join(tmp, 'fakenpm');
+  const log = path.join(tmp, 'npm.log');
+  for (const name of ['npm', 'npx']) {
+    write(
+      path.join(bin, `${name}.js`),
+      `require('fs').appendFileSync(${JSON.stringify(log)}, ['${name}', ...process.argv.slice(2)].join(' ') + '\\n');
+if (process.argv[2] === 'view') console.log('9.8.7');`
+    );
+    write(path.join(bin, `${name}.cmd`), `@node "%~dp0${name}.js" %*
+`);
+    write(path.join(bin, name), `#!/bin/sh
+exec "${process.execPath}" "$(dirname "$0")/${name}.js" "$@"
+`);
+    fs.chmodSync(path.join(bin, name), 0o755);
+  }
+  const key = Object.keys(sandbox).find((k) => k.toUpperCase() === 'PATH');
+  const r = spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), 'upgrade', '--agents', 'claude,codex', '--no-activate'], {
+    cwd: tmp,
+    encoding: 'utf8',
+    env: { ...sandbox, [key]: `${bin}${path.delimiter}${sandbox[key]}` },
+  });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  const asked = read(log).trim().split('\n');
+  assert.ok(asked.includes('npm install -g graut-bhar-de@9.8.7'), asked.join(' | '));
+  assert.ok(asked.includes('npx --yes graut-bhar-de@9.8.7 install --agents claude,codex --no-activate'), asked.join(' | '));
+  assert.strictEqual(graut('upgrade', '--agents', 'x&y').status, 1);
+});
+
+// macOS and Linux get these modes from git clone and from the plugin install.
+test('every script that starts with #! is runnable in git', { skip: !fs.existsSync(path.join(ROOT, '.git')) }, () => {
+  const listed = execFileSync('git', ['-C', ROOT, 'ls-files', '-s', '-z'], { encoding: 'utf8', maxBuffer: 1e8 });
+  const wrong = listed
+    .split('\0')
+    .filter((line) => line.startsWith('100644'))
+    .map((line) => line.split('\t')[1])
+    .filter((file) => read(ROOT, file).startsWith('#!'));
+  assert.deepStrictEqual(wrong, []);
+});

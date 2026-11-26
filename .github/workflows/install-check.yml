@@ -134,6 +134,12 @@ jobs:
         run: |
           npm install -g "$RUNNER_TEMP/graut.tgz"
           cd "$RUNNER_TEMP/run" && npx graut help && graut level
+      # installs whatever npm currently serves as newest, so it proves the command, not this commit's package
+      - name: upgrade command
+        run: |
+          cd "$RUNNER_TEMP/run"
+          npx --yes --package "$RUNNER_TEMP/graut.tgz" graut-bhar-de upgrade --agents codex --no-system-deps | tee upgrade.log
+          grep -q "codex: graut installed with 34 skills inside" upgrade.log
       - name: git clone route
         run: |
           cd "$RUNNER_TEMP"

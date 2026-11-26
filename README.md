@@ -27,7 +27,7 @@ One skill for Claude Code, Codex, Antigravity and other coding agents, with 34 s
 
 ## Install
 
-Three steps. Type the commands in a terminal (**PowerShell** on Windows, **Terminal** on macOS and Linux), not in the chat box.
+Four steps. Type the commands in a terminal (**PowerShell** on Windows, **Terminal** on macOS and Linux), not in the chat box.
 
 ### Step 1: get the basic tools
 
@@ -87,6 +87,47 @@ npx graut-bhar-de doctor
 ```
 
 If a line says `MISSING`, run the command Graut prints after `do this:` and install again.
+
+### Step 4: use it
+
+Open your project in your agent and type your problem. In Claude Code:
+
+```text
+/graut:graut tests fail, fix it
+```
+
+In other agents:
+
+```text
+/graut tests fail, fix it
+```
+
+## Upgrade to a newer version
+
+1. Close your agent.
+2. Run this (same on Windows, macOS and Linux):
+
+```bash
+npx graut-bhar-de@latest upgrade
+```
+
+3. Open your agent again, then check with `npx graut-bhar-de@latest doctor`.
+
+`upgrade` gets the newest version from npm, refreshes the global install if you have one, and installs it for every agent found. Your level, your added skills and your own files stay. It takes the same options as `install`, such as `--agents claude`. If npm says the command is not found or you still get the old version, wait a few minutes: a fresh release takes a while to appear.
+
+| How you installed | How to upgrade |
+|---|---|
+| `npx` or global install | `npx graut-bhar-de@latest upgrade` |
+| git clone | in the `Graut` folder: `git pull`, then `node skills/graut/scripts/graut.js` |
+| Only the Claude Code plugin from GitHub | in Claude Code: `/plugin marketplace update graut`, then `/plugin update graut@graut`, then restart |
+
+## Uninstall
+
+```bash
+npx graut-bhar-de@latest uninstall
+```
+
+If you installed it globally, also run `npm uninstall -g graut-bhar-de`.
 
 ### Other ways to install
 
@@ -227,6 +268,7 @@ Prefix each with `npx graut-bhar-de` (or `npx graut` after the global install).
 | Command | Does |
 |---|---|
 | `install` (default) | set up or update |
+| `upgrade` | get the newest version and install it |
 | `doctor` | show what is installed and missing |
 | `level [name]` | show or change the level |
 | `find <words>` | search local skills and catalogs |
