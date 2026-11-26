@@ -3,7 +3,7 @@ MIT License
 Copyright (c) 2026 Pranjal (Pranjal240)
 
 This license covers Graut's own files: skills/graut (except its packs and
-library folders), hooks, types, scripts, test, tests, .claude-plugin and the
+library folders), commands, hooks, types, scripts, test, tests, .claude-plugin and the
 text files in the repository root. The packs and library folders keep their own
 authors' licenses, and the images in assets are not covered (see CREDITS.md).
 

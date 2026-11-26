@@ -83,6 +83,8 @@ Handle simple work with the steps above. Load more when it adds depth.
 
 **Specialists** go deeper: read `<GRAUT>/packs/<name>/PACK.md`. Paths inside a pack are relative to its folder. Where a pack mentions `SKILL.md` or another skill by name, read that `packs/<name>/PACK.md`. Ask the user before any pack sends usage data anywhere.
 
+On Windows, if `python3` fails, run `python`. If a pack's tool or package is missing, run `node "<GRAUT>/scripts/graut.js" doctor` and give the user the exact fix it names.
+
 | Task | Pack |
 |---|---|
 | Stop over-building; review or audit for bloat | `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` |

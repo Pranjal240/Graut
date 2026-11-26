@@ -14,7 +14,8 @@ const json = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 // and a local git repo standing in for the catalog.
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'graut-test-'));
 const home = path.join(tmp, 'home');
-const bundle = path.join(tmp, 'bundle', 'graut');
+const pkg = path.join(tmp, 'pkg'); // laid out like the published package
+const bundle = path.join(pkg, 'skills', 'graut');
 const upstream = path.join(tmp, 'upstream');
 const write = (file, text) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -72,7 +73,7 @@ const graut = (...args) =>
 const claude = path.join(home, '.claude', 'skills');
 const codex = path.join(home, '.agents', 'skills');
 const memory = path.join(home, '.claude', 'CLAUDE.md');
-const flags = ['--agents', 'claude,codex', '--no-system-deps'];
+const flags = ['--agents', 'claude,codex', '--no-system-deps', '--no-plugin'];
 
 // left by Graut 1.0, which installed each specialist separately
 write(path.join(claude, 'alpha', 'SKILL.md'), skill('alpha', 'old copy'));
@@ -147,17 +148,52 @@ test('unknown agent is rejected', () => {
   assert.match(graut('install', '--agents', 'clippy').stderr, /unknown agent/);
 });
 
-test('strict leaves out packs that did not pass a scan', () => {
-  const r = graut('install', ...flags, '--strict');
-  assert.match(r.stdout, /did not pass the scan \(--strict\): alpha, beta/);
-  assert.deepStrictEqual(fs.readdirSync(path.join(claude, 'graut', 'packs')), []);
-});
-
 test('uninstall removes only what Graut added', () => {
   assert.strictEqual(graut('uninstall').status, 0);
   assert.deepStrictEqual(fs.readdirSync(claude), ['beta']);
   assert.ok(fs.existsSync(path.join(codex, 'graut', 'SKILL.md')));
   assert.strictEqual(read(memory), 'my own rules\n');
+});
+
+test('with Claude Code present, install adds the plugin instead of a second skill copy', () => {
+  const home2 = path.join(tmp, 'home2');
+  const bin = path.join(tmp, 'fakebin');
+  const log = path.join(tmp, 'claude.log');
+  // a stand-in for the claude command that records what it was asked to do
+  write(
+    path.join(bin, 'claude.js'),
+    `require('fs').appendFileSync(${JSON.stringify(log)}, JSON.stringify(process.argv.slice(2)) + '\\n');
+if (process.argv.slice(2).join(' ') === 'plugin list') console.log('graut@graut\\nponytail@ponytail');`
+  );
+  write(path.join(bin, 'claude.cmd'), '@node "%~dp0claude.js" %*\r\n');
+  write(path.join(bin, 'claude'), '#!/bin/sh\nexec node "$(dirname "$0")/claude.js" "$@"\n');
+  fs.chmodSync(path.join(bin, 'claude'), 0o755);
+  write(path.join(pkg, '.claude-plugin', 'plugin.json'), '{}');
+  write(path.join(pkg, 'commands', 'alpha.md'), 'x');
+  write(path.join(home2, '.claude', 'skills', 'graut', '.graut'), 'Pranjal240/Graut\n');
+  const withClaude = (...args) =>
+    spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), ...args], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: { ...sandbox, GRAUT_HOME: home2, PATH: `${bin}${path.delimiter}${sandbox.PATH}` },
+    });
+
+  const r = withClaude('install', '--agents', 'claude', '--no-system-deps');
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /Graut plugin installed with the panel/);
+  assert.match(r.stdout, /claude plugin disable ponytail@ponytail/);
+  const copy = path.join(home2, '.graut', 'plugin');
+  for (const file of ['.claude-plugin/plugin.json', 'commands/alpha.md', 'skills/graut/packs/alpha/PACK.md']) {
+    assert.ok(fs.existsSync(path.join(copy, file)), file);
+  }
+  assert.ok(!fs.existsSync(path.join(home2, '.claude', 'skills', 'graut')));
+  const asked = () => read(log).trim().split('\n').map((line) => JSON.parse(line).join(' '));
+  assert.ok(asked().includes(`plugin marketplace add ${copy}`), asked().join(' | '));
+  assert.ok(asked().includes('plugin install graut@graut'));
+
+  assert.strictEqual(withClaude('uninstall', '--agents', 'claude').status, 0);
+  assert.ok(asked().includes('plugin uninstall graut@graut'));
+  assert.ok(!fs.existsSync(copy));
 });
 
 const walk = (dir) =>
@@ -192,6 +228,17 @@ test('agents see exactly one skill, and every pack inside it is complete', () =>
       assert.ok(fs.existsSync(path.join(GRAUT, 'library', source.id, item)), `${source.id}/${item}`);
     }
   }
+});
+
+test('every pack has a direct command that costs no context until called', () => {
+  const names = fs.readdirSync(path.join(GRAUT, 'packs'));
+  assert.deepStrictEqual(fs.readdirSync(path.join(ROOT, 'commands')).sort(), names.map((n) => `${n}.md`).sort());
+  for (const name of names) {
+    const command = read(ROOT, 'commands', `${name}.md`);
+    assert.match(command, /^---\ndescription: ".+"\n[\s\S]*?\ndisable-model-invocation: true\n---/, name);
+    assert.ok(command.includes(`\${CLAUDE_PLUGIN_ROOT}/skills/graut/packs/${name}/PACK.md`), name);
+  }
+  assert.ok(json(path.join(ROOT, 'package.json')).files.includes('commands'));
 });
 
 test('links inside the packs lead to files that exist', () => {

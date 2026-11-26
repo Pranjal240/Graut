@@ -1,6 +1,6 @@
 {
   "name": "graut-bhar-de",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "Web, AI, machine learning or any software problem: sabme Graut bhar denge. One skill that plans, builds and verifies, by Pranjal",
   "bin": {
     "graut-bhar-de": "skills/graut/scripts/graut.js",
@@ -8,13 +8,15 @@
   },
   "files": [
     "skills",
+    "commands",
     "hooks",
     "types",
+    "assets/icon.jpg",
     ".claude-plugin",
-    "CREDITS.md",
-    "SCAN.md"
+    "CREDITS.md"
   ],
   "scripts": {
+    "setup": "node skills/graut/scripts/graut.js",
     "test": "node --test test/graut.test.js",
     "sync": "node scripts/sync.js"
   },

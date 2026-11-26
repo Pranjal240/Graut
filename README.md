@@ -12,8 +12,7 @@ Koi bhi software problem ho, usme graut bhar denge aur solve kar denge.
 by **Pranjal**
 
 ```bash
-npm install -g graut-bhar-de
-npx graut
+npx graut-bhar-de
 ```
 
 </div>
@@ -22,34 +21,86 @@ npx graut
 
 ## What is Graut?
 
-One skill for Claude Code, Codex, Antigravity and other coding agents. Say your problem in a few words. Graut works out what it really needs, loads the right expertise, builds it, **checks it before calling it solved**, and remembers your project.
-
-- **Any software problem.** Websites, APIs, bugs, AI apps, ML models, design, launch videos.
-- **One skill, not thirty.** Your agent sees only `graut`. Everything else is read when a task needs it, so sessions stay light.
-- **Any model.** A seven-step short version keeps small models on track; bigger ones get the full playbook.
-- **A live panel** in Claude Code, with your level and what the session has used.
+One skill for Claude Code, Codex, Antigravity and other coding agents, with 34 specialists inside. Say your problem in a few words. Graut works out what it needs, loads the right expertise, builds it, **checks it before calling it solved**, and remembers your project.
 
 ## Install
 
-| How | Command |
+You need [Node.js](https://nodejs.org) 18.3 or newer (22 or newer for the video skills) and [git](https://git-scm.com). Run these in a terminal (PowerShell, Terminal or bash), **not** in the chat box.
+
+### 1. One command (recommended)
+
+```bash
+npx graut-bhar-de
+```
+
+### 2. Or install it once, then use `npx graut`
+
+```bash
+npm install -g graut-bhar-de
+```
+
+```bash
+npx graut
+```
+
+npm only downloads the package; `npx graut` is what sets it up. (npm does not allow a package named exactly `graut`, so the install name is `graut-bhar-de`.)
+
+### 3. Or with git clone
+
+```bash
+git clone -c core.longpaths=true https://github.com/Pranjal240/Graut.git
+```
+
+```bash
+cd Graut
+```
+
+```bash
+node skills/graut/scripts/graut.js
+```
+
+### Then
+
+1. If it asks to install FFmpeg or Python, accept. If it ends with `do this: ...`, run that command, open a **new** terminal and run the install again.
+2. Close and reopen Claude Code (or your agent).
+3. Check everything: `npx graut-bhar-de doctor`
+
+### Only inside Claude Code
+
+Type these in Claude Code:
+
+```
+/plugin marketplace add Pranjal240/Graut
+/plugin install graut@graut
+```
+
+In the desktop app: click **+** beside the prompt box, **Plugins**, **Add marketplace** `Pranjal240/Graut`, then **Add plugin**. This gives you the panel and every skill. Say **set up graut** afterwards to install the tools the skills need.
+
+## Use
+
+In Claude Code, with the plugin:
+
+```text
+/graut:graut tests fail, fix it
+/graut:graut my model has 99% accuracy but fails in production
+/graut:impeccable audit my landing page
+/graut:ui-ux-pro-max design system for a chai shop
+/graut:brag-slim
+kya karu? my app is slow
+```
+
+Every skill below has its own `/graut:<name>` command. In other agents, or when Graut is installed as a plain skill, write `/graut impeccable audit my landing page`.
+
+| When | Graut says |
 |---|---|
-| **Recommended** | `npm install -g graut-bhar-de` once, then `npx graut` |
-| Without installing | `npx graut-bhar-de` |
-| Claude Code plugin (with the panel) | `/plugin marketplace add Pranjal240/Graut` then `/plugin install graut@graut` |
-| `skills` CLI | `npx skills add Pranjal240/Graut -g` |
-| From GitHub | `npx --allow-git=all github:Pranjal240/Graut` |
-| Clone | `git clone https://github.com/Pranjal240/Graut.git` then `node Graut/skills/graut/scripts/graut.js` |
-| Paste into an agent | `Install the skill from https://github.com/Pranjal240/Graut : copy the whole skills/graut folder into your skills folder.` |
-
-Restart your agent afterwards. You need Node.js 18.3 or newer.
-
-Installing the package only downloads it: `npx graut` is what sets Graut up (npm does not run setup scripts for you). That command and the clone route also install missing tools and switch Graut on for every agent found; after the other routes, say "set up graut".
-
-`npx graut` works once the package is installed globally. npm does not allow a package named exactly `graut`, so without the global install use `npx graut-bhar-de`.
+| Starting a task | Tention mat le, teri problem me graut bhar denge |
+| You ask "kya karu?" | Isme Graut bhar denge, and then the answer |
+| It needs something from you | teri problem me graut to bhar diya, par isse kam nhi chalega (do this: ...) |
+| Solved and checked | le bhai isme graut bhardiya |
 
 ## The panel
 
-With the Claude Code plugin, Graut sits above the prompt:
+In Claude Code, Graut sits above the prompt:
 
 ```text
 GRAUT by Pranjal   Tention mat le, teri problem me graut bhar denge
@@ -64,45 +115,32 @@ cost $0.42 last $0.11   tokens 1.2M   time 4m 10s 3 turns   tests 11 passed   sk
 | `full` | Everything (default) |
 | `ultra` | Loads every matching specialist, plans in writing, verifies, reviews its own work |
 
-Other agents: `npx graut level ultra`.
+Other agents: `npx graut-bhar-de level ultra`. If you also have the ponytail plugin, Graut already includes it; `claude plugin disable ponytail@ponytail` leaves only the Graut panel.
 
-**Review** and **Audit** ask Graut for a report on your changes or project. **Doctor** shows what is missing. **Copy** puts the session figures on your clipboard. **Compact** shrinks the conversation. Cost is Claude Code's own estimate.
+## What install sets up
 
-## Use
-
-```text
-/graut tests fail, fix it
-/graut build a landing page for my chai shop
-/graut my RAG bot gives wrong answers
-/graut my model has 99% accuracy but fails in production
-kya karu? my app is slow
-```
-
-With the plugin the command is `/graut:graut`.
-
-| When | Graut says |
+| Set up | For |
 |---|---|
-| Starting a task | Tention mat le, teri problem me graut bhar denge |
-| You ask "kya karu?" | Isme Graut bhar denge, and then the answer |
-| It needs something from you | teri problem me graut to bhar diya, par isse kam nhi chalega (do this: ...) |
-| Solved and checked | le bhai isme graut bhardiya |
+| The Claude Code plugin | the panel and `/graut:<name>` commands |
+| The `graut` skill in Codex, Antigravity, Gemini CLI, Cursor, OpenCode, Copilot CLI, Windsurf and Kiro | whichever you have |
+| git, uv, Python, FFmpeg (through winget or Homebrew) | design and video skills |
+| `python3` on Windows | skills that call it |
+| Python packages: numpy, scipy, pillow, google-genai | `design`, `day-in-my-life` |
+| Node packages | `day-in-my-life`, `session-story`, `p5-paint-animation` |
+| The design engine and the video tool | `impeccable`, HyperFrames skills |
+| A short note in `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` (old file saved as `.graut.bak`) | keeps Graut on |
 
-## From four words to a website
+Two features need your own account: image generation in `design` needs a `GEMINI_API_KEY`, and HeyGen voices and avatars in `media-use` need a HeyGen login.
 
-A one-line page and the prompt "make this website good" gave this (the menu items are samples, and the page says so):
+## Something not working?
 
-<div align="center">
-<img src="https://raw.githubusercontent.com/Pranjal240/Graut/main/assets/example-website.jpg" alt="A chai cart ordering page built by Graut" width="720">
-</div>
-
-## How it works
-
-1. **Understand** a short request and fill in sensible defaults.
-2. **Plan** to the size of the job.
-3. **Load** the playbook or specialist that fits, one at a time.
-4. **Build** the smallest complete change.
-5. **Prove** it by running something, never by rereading its own work.
-6. **Remember** what matters in `.graut/memory.md`.
+| You see | Do this |
+|---|---|
+| Anything unclear | `npx graut-bhar-de doctor` names what is missing and the command that fixes it |
+| No panel, no `/graut:` commands | Close Claude Code fully and reopen it; check `claude plugin list` shows `graut@graut` |
+| `Python was not found` | Run the install again, or use `python` instead of `python3` |
+| `ffmpeg` not found after installing it | Open a new terminal |
+| Video render fails on first use | Run `npx --yes hyperframes@latest doctor` |
 
 ## What is inside
 
@@ -115,12 +153,20 @@ A one-line page and the prompt "make this website good" gave this (the menu item
 | Design | `ui-ux-pro-max`, `impeccable`, `design`, `brand`, `design-system`, `ui-styling`, `banner-design`, `slides` |
 | Video | `brag`, `brag-slim`, `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `camera-3d-captions`, `day-in-my-life`, `duo`, `p5-paint-animation`, `prod-by-claude`, `session-story`, `vox-explainer`, `x-posting-license` |
 | Turning a person's thinking into a skill | `huashu-nuwa` |
-| Safety | `skill-inspector`, with NVIDIA SkillSpector |
+| Skill safety | `skill-inspector`, with NVIDIA SkillSpector |
 | Everything else | `find` searches skills on your machine and thousands in the bundled catalogs; `add` gives one to Graut |
+
+## From four words to a website
+
+A one-line page and the prompt "make this website good" gave this (the menu items are samples, and the page says so):
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/Pranjal240/Graut/main/assets/example-website.jpg" alt="A chai cart ordering page built by Graut" width="720">
+</div>
 
 ## Commands
 
-Prefix each with `npx graut`.
+Prefix each with `npx graut-bhar-de` (or `npx graut` after the global install).
 
 | Command | Does |
 |---|---|
@@ -135,25 +181,14 @@ Prefix each with `npx graut`.
 |---|---|
 | `--agents claude,codex` | only these agents |
 | `--no-activate` | leave instruction files alone |
-| `--no-system-deps` | do not install tools or SkillSpector |
-| `--scan` | scan the specialists before installing (several minutes) |
-| `--strict` | scan, and install only the ones that pass |
-| `--allow-risky` | with `add`, add it despite a failed or missing scan |
+| `--no-plugin` | Claude Code: the skill only, without the plugin and panel |
+| `--no-system-deps` | do not install tools or packages |
+| `--allow-risky` | with `add`, add a catalog skill despite a failed or missing scan |
 
-## What install does
+## Good to know
 
-1. Installs missing git, uv, Python and FFmpeg through winget or Homebrew, if you run it in a terminal. Elsewhere it prints the command.
-2. Installs SkillSpector with uv.
-3. Copies the `graut` folder into each agent's skills folder. A `graut` folder of your own is left alone.
-4. Adds a short marked block to `CLAUDE.md`, `AGENTS.md` and `GEMINI.md` (the old file is saved as `.graut.bak`).
-
-Supported: Claude Code, Codex, Antigravity, Gemini CLI, Cursor, OpenCode, GitHub Copilot CLI, Windsurf, Kiro. The always-on block is added for Claude Code, Codex, Antigravity and Gemini CLI; the others load Graut when the task matches.
-
-## Safety, read this
-
-- Skills are instructions and scripts that your agent runs with your permissions. Installing Graut means trusting the projects in [CREDITS.md](CREDITS.md).
-- A static scan rates some specialists high risk. [SCAN.md](SCAN.md) lists them and why. Use `--strict` to leave them out.
-- Some specialists use the network or your API keys when you run them: `impeccable` downloads its engine on first run, the HyperFrames tools are fetched with `npx`, and `design` calls the image provider you give it a key for. Graut asks before any of them sends usage data.
+- Skills are instructions and scripts that your agent runs with your permissions.
+- Some skills use the network or your API keys when you run them: `impeccable` and the HyperFrames tools download their programs, and `design` calls the image provider you give it a key for. Graut asks before any of them sends usage data.
 - `session-story` and `day-in-my-life` read your local agent transcripts to make their films.
 
 ## Maintaining

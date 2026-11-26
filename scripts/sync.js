@@ -96,4 +96,5 @@ if (fs.existsSync(path.join(ROOT, '.git'))) {
     execFileSync('git', ['-C', ROOT, 'update-index', '--add', '--chmod=+x', relative]);
   }
 }
+require('./commands.js');
 console.log(`Done. ${executables.length} executable files.`);
