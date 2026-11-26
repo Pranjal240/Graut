@@ -53,11 +53,21 @@ write(
   })
 );
 
+// A scanner installed on this machine must not change the results, so the sandbox cannot see one.
+const hasScanner = (dir) => ['skillspector', 'skillspector.exe'].some((f) => fs.existsSync(path.join(dir, f)));
+const sandbox = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH'));
+Object.assign(sandbox, {
+  PATH: (process.env.PATH || '').split(path.delimiter).filter((d) => d && !hasScanner(d)).join(path.delimiter),
+  UV_TOOL_BIN_DIR: path.join(tmp, 'no-tools'),
+  GRAUT_HOME: home,
+  GRAUT_SOURCES: manifest,
+});
+
 const graut = (...args) =>
   spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), ...args], {
     cwd: tmp,
     encoding: 'utf8',
-    env: { ...process.env, GRAUT_HOME: home, GRAUT_SOURCES: manifest },
+    env: sandbox,
   });
 const claude = path.join(home, '.claude', 'skills');
 const codex = path.join(home, '.agents', 'skills');
@@ -115,14 +125,13 @@ test('find searches packs, other local skills and the catalog', () => {
 
 test('add gives a catalog skill to Graut only past the scan or on request', () => {
   const added = path.join(home, '.graut', 'packs', 'extra');
-  // a scanner that is absent or fails must not silently add a catalog skill
+  // with no scanner, a catalog skill is not added silently
   const first = graut('add', 'extra');
-  if (first.status !== 0) {
-    assert.match(first.stdout, /par isse kam nhi chalega/);
-    assert.ok(!fs.existsSync(added));
-    const forced = graut('add', 'extra', '--allow-risky');
-    assert.strictEqual(forced.status, 0, forced.stdout + forced.stderr);
-  }
+  assert.notStrictEqual(first.status, 0, first.stdout);
+  assert.match(first.stdout, /par isse kam nhi chalega/);
+  assert.ok(!fs.existsSync(added));
+  const forced = graut('add', 'extra', '--allow-risky');
+  assert.strictEqual(forced.status, 0, forced.stdout + forced.stderr);
   assert.ok(fs.existsSync(path.join(added, 'UPSTREAM-LICENSE')));
   assert.ok(!fs.existsSync(path.join(claude, 'extra')));
 });
