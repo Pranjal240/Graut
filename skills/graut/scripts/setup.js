@@ -68,6 +68,13 @@ function missingModules(py) {
   return r.status === 0 ? r.stdout.split(/\r?\n/).filter(Boolean).map((m) => MODULES[m]) : Object.values(MODULES);
 }
 
+// Linux and Homebrew Pythons refuse pip installs unless told otherwise; that choice is left to the user.
+function pipCommand(py, names) {
+  const code = "import os, sysconfig; print(os.path.exists(os.path.join(sysconfig.get_path('stdlib'), 'EXTERNALLY-MANAGED')))";
+  const managed = run(py, ['-c', code]).stdout?.trim() === 'True';
+  return `${py} -m pip install --user ${managed ? '--break-system-packages ' : ''}${names.join(' ')}`;
+}
+
 function installModules(py, names) {
   const pip = (extra, stdio) =>
     run(py, ['-m', 'pip', 'install', '--quiet', ...extra, ...names], { stdio }).status === 0;
@@ -110,7 +117,7 @@ function prepare(packsFolders, remember) {
     let missing = missingModules(py);
     if (missing.length) installModules(py, missing);
     missing = missingModules(py);
-    step('Python packages', !missing.length, `${py} -m pip install --user ${missing.join(' ')}`);
+    step('Python packages', !missing.length, missing.length && pipCommand(py, missing));
   }
 
   for (const folder of packsFolders.flatMap(nodeFolders)) {
@@ -145,7 +152,7 @@ function report(packsFolders) {
   if (py) {
     if (WINDOWS) line(works('python3', ['-c', '']), 'python3 command', 'skills that call python3', 'run install again');
     const missing = missingModules(py);
-    line(!missing.length, 'Python packages', 'design, day-in-my-life', `${py} -m pip install --user ${missing.join(' ')}`);
+    line(!missing.length, 'Python packages', 'design, day-in-my-life', missing.length && pipCommand(py, missing));
   }
   const bare = packsFolders.flatMap(nodeFolders);
   line(!bare.length, 'skill packages', 'day-in-my-life, session-story, p5-paint-animation', 'run install again');

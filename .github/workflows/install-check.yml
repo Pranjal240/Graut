@@ -1,0 +1,151 @@
+# Runs the README's install steps on real Windows, macOS and Linux machines.
+name: install-check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DO_NOT_TRACK: '1'
+  HYPERFRAMES_NO_TELEMETRY: '1'
+  DISABLE_TELEMETRY: '1'
+
+jobs:
+  # A clean Linux container with nothing installed: the README's Linux steps, word for word.
+  linux-from-scratch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: ubuntu:24.04
+    steps:
+      - name: Make the container behave like a normal machine
+        run: apt-get update -qq && apt-get install -y -qq sudo curl ca-certificates
+      - name: README Linux step 1 - Node.js, git, Python, FFmpeg
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+          sudo apt-get install -y -qq nodejs git python3 python3-pip python3-numpy python3-scipy python3-pil ffmpeg
+      - name: README Linux step 2 - uv and the image package
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          python3 -m pip install --user --break-system-packages google-genai
+      - uses: actions/checkout@v4
+      - name: Build the package from this commit
+        run: npm pack --silent && mv graut-bhar-de-*.tgz /tmp/graut.tgz
+      - name: One-command install
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          mkdir -p "$HOME/.codex" /tmp/run && cd /tmp/run
+          set -o pipefail
+          npx --yes --package /tmp/graut.tgz graut-bhar-de --agents codex | tee install.log
+          grep -q "codex: graut installed with 34 skills inside" install.log
+          grep -q "le bhai isme graut bhardiya" install.log
+      - name: Doctor reports everything present
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cd /tmp/run && npx --yes --package /tmp/graut.tgz graut-bhar-de doctor --agents codex
+      - name: Global install, then npx graut
+        shell: bash
+        run: |
+          sudo npm install -g /tmp/graut.tgz
+          cd /tmp/run && npx graut help && graut level
+
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: System tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg python3-numpy python3-scipy python3-pil
+          python3 -m pip install --user --break-system-packages google-genai
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: System tools (macOS, as in the README)
+        if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg uv
+          python3 -m pip install --user --break-system-packages numpy scipy pillow google-genai
+      # The README uses winget, which these runners do not have; the same tools come from Chocolatey and pip.
+      - name: System tools (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install ffmpeg -y --no-progress
+          python -m pip install --quiet uv
+      - name: Installer tests
+        run: npm test
+      - name: Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Plugin and panel checks
+        run: claude plugin validate . && claude plugin test .
+      - name: One-command install with Claude Code and Codex
+        run: |
+          npm pack --silent
+          mv graut-bhar-de-*.tgz "$RUNNER_TEMP/graut.tgz"
+          mkdir -p "$HOME/.codex" "$HOME/.claude" "$RUNNER_TEMP/run" && cd "$RUNNER_TEMP/run"
+          set -o pipefail
+          npx --yes --package "$RUNNER_TEMP/graut.tgz" graut-bhar-de --agents claude,codex | tee install.log
+          grep -q "Graut plugin installed with the panel and 34 skills" install.log
+          grep -q "codex: graut installed with 34 skills inside" install.log
+          claude plugin list | grep -q "graut@graut"
+      - name: Doctor
+        run: |
+          cd "$RUNNER_TEMP/run"
+          npx --yes --package "$RUNNER_TEMP/graut.tgz" graut-bhar-de doctor --agents claude,codex
+      - name: Skill tools really run
+        run: |
+          P="$HOME/.agents/skills/graut/packs"
+          PY=$(command -v python3 >/dev/null && python3 -c "" 2>/dev/null && echo python3 || echo python)
+          mkdir -p "$RUNNER_TEMP/skills" && cd "$RUNNER_TEMP/skills"
+          echo "design system search"
+          $PY "$P/ui-ux-pro-max/scripts/search.py" "chai shop ordering" --design-system | head -n 20
+          echo "logo brief"
+          $PY "$P/design/scripts/logo/search.py" "tech startup" --design-brief -p Demo | head -n 8
+          echo "design audit finds a contrast problem"
+          printf '<!doctype html><title>t</title><body style="color:#999;background:#aaa"><p>x</p></body>' > index.html
+          sh "$P/impeccable/scripts/impeccable" detect index.html | tee detect.log || true
+          grep -q "low-contrast" detect.log
+      - name: A video renders
+        run: |
+          cd "$RUNNER_TEMP/skills"
+          npx --yes hyperframes@latest init demo --non-interactive --skip-skills --example blank
+          cd demo && npx --yes hyperframes@latest render -o out.mp4
+          test -s out.mp4
+      - name: Global install, then npx graut
+        run: |
+          npm install -g "$RUNNER_TEMP/graut.tgz"
+          cd "$RUNNER_TEMP/run" && npx graut help && graut level
+      - name: git clone route
+        run: |
+          cd "$RUNNER_TEMP"
+          git clone -c core.longpaths=true --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" fresh
+          node fresh/skills/graut/scripts/graut.js --agents cursor --no-system-deps | grep -q "cursor: graut installed with 34 skills inside"
+      - name: Claude Code plugin straight from GitHub
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-from-github
+        run: |
+          claude plugin marketplace add "${GITHUB_REPOSITORY}"
+          claude plugin install graut@graut
+          claude plugin list | grep -q "graut@graut"
+      - name: skills CLI finds Graut
+        run: npx --yes skills add "${GITHUB_REPOSITORY}" --list | grep -i graut
+      - name: Uninstall
+        run: |
+          cd "$RUNNER_TEMP/run"
+          npx --yes --package "$RUNNER_TEMP/graut.tgz" graut-bhar-de uninstall
+          test ! -d "$HOME/.agents/skills/graut"

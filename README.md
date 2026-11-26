@@ -11,6 +11,8 @@ Koi bhi software problem ho, usme graut bhar denge aur solve kar denge.
 
 by **Pranjal**
 
+[![install-check](https://github.com/Pranjal240/Graut/actions/workflows/install-check.yml/badge.svg)](https://github.com/Pranjal240/Graut/actions/workflows/install-check.yml)
+
 ```bash
 npx graut-bhar-de
 ```
@@ -25,49 +27,93 @@ One skill for Claude Code, Codex, Antigravity and other coding agents, with 34 s
 
 ## Install
 
-You need [Node.js](https://nodejs.org) 18.3 or newer (22 or newer for the video skills) and [git](https://git-scm.com). Run these in a terminal (PowerShell, Terminal or bash), **not** in the chat box.
+Three steps. Type the commands in a terminal (**PowerShell** on Windows, **Terminal** on macOS and Linux), not in the chat box.
 
-### 1. One command (recommended)
+### Step 1: get the basic tools
+
+Skip anything you already have. Graut needs Node.js 18.3 or newer (22 or newer for video skills) and git; the rest is used by the design and video skills.
+
+<details open>
+<summary><b>Windows</b></summary>
+
+```powershell
+winget install --id OpenJS.NodeJS.LTS -e
+winget install --id Git.Git -e
+winget install --id Python.Python.3.13 -e
+winget install --id Gyan.FFmpeg.Essentials -e
+winget install --id astral-sh.uv -e
+```
+
+Close PowerShell and open a new one.
+</details>
+
+<details>
+<summary><b>macOS</b> (needs <a href="https://brew.sh">Homebrew</a>)</summary>
+
+```bash
+brew install node git python ffmpeg uv
+python3 -m pip install --user --break-system-packages numpy scipy pillow google-genai
+```
+</details>
+
+<details>
+<summary><b>Linux</b> (Ubuntu or Debian)</summary>
+
+```bash
+sudo apt-get update && sudo apt-get install -y curl ca-certificates
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs git python3 python3-pip python3-numpy python3-scipy python3-pil ffmpeg
+curl -LsSf https://astral.sh/uv/install.sh | sh
+python3 -m pip install --user --break-system-packages google-genai
+```
+
+Open a new terminal. On other distributions, install the same tools with your package manager.
+</details>
+
+### Step 2: install Graut (same on every system)
 
 ```bash
 npx graut-bhar-de
 ```
 
-### 2. Or install it once, then use `npx graut`
+On Windows, if PowerShell says *running scripts is disabled*, use `npx.cmd graut-bhar-de`.
+
+### Step 3: restart and check
+
+Close and reopen Claude Code (or your agent), then:
+
+```bash
+npx graut-bhar-de doctor
+```
+
+If a line says `MISSING`, run the command Graut prints after `do this:` and install again.
+
+### Other ways to install
+
+**Install once, then use `npx graut`** (on Linux put `sudo` before the first command):
 
 ```bash
 npm install -g graut-bhar-de
-```
-
-```bash
 npx graut
 ```
 
-npm only downloads the package; `npx graut` is what sets it up. (npm does not allow a package named exactly `graut`, so the install name is `graut-bhar-de`.)
+npm only downloads the package; `npx graut` sets it up. npm does not allow a package named exactly `graut`, so the install name is `graut-bhar-de`.
 
-### 3. Or with git clone
+**git clone**
 
 ```bash
 git clone -c core.longpaths=true https://github.com/Pranjal240/Graut.git
-```
-
-```bash
 cd Graut
-```
-
-```bash
 node skills/graut/scripts/graut.js
 ```
 
-### Then
+**Straight from GitHub** (the newest code, before it reaches npm)
 
-1. If it asks to install FFmpeg or Python, accept. If it ends with `do this: ...`, run that command, open a **new** terminal and run the install again.
-2. Close and reopen Claude Code (or your agent).
-3. Check everything: `npx graut-bhar-de doctor`
+```bash
+npx --yes github:Pranjal240/Graut
+```
 
-### Only inside Claude Code
-
-Type these in Claude Code:
+**Only inside Claude Code** (type these in Claude Code)
 
 ```
 /plugin marketplace add Pranjal240/Graut
@@ -137,6 +183,10 @@ Two features need your own account: image generation in `design` needs a `GEMINI
 - **One skill to list.** Claude Code, Codex, Antigravity and the rest see `graut`, not 35 skills. Specialists are read only when a task needs them. In Claude Code the 34 direct commands add nothing to a session (measured).
 - **Lean working rules.** Graut limits command output, reads only what the task needs and keeps replies short, without skipping checks.
 - **Nothing lost.** A loaded specialist is followed in full, exactly as its author wrote it, with Graut's planning, checking and memory around it.
+
+## Tested
+
+Every change runs the install steps on fresh Windows, macOS and Linux machines: the one-command install, the global install, git clone, the Claude Code plugin, the `skills` CLI, a design audit and a video render. The badge at the top shows the latest result.
 
 ## Something not working?
 
