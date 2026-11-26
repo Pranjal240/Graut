@@ -118,7 +118,8 @@ jobs:
           $PY "$P/design/scripts/logo/search.py" "tech startup" --design-brief -p Demo | head -n 8
           echo "design audit finds a contrast problem"
           printf '<!doctype html><title>t</title><body style="color:#999;background:#aaa"><p>x</p></body>' > index.html
-          sh "$P/impeccable/scripts/impeccable" detect index.html | tee detect.log || true
+          # the detector reports findings on stderr and exits non-zero when it finds any
+          sh "$P/impeccable/scripts/impeccable" detect index.html 2>&1 | tee detect.log || true
           grep -q "low-contrast" detect.log
       - name: A video renders
         run: |
