@@ -132,6 +132,12 @@ Other agents: `npx graut-bhar-de level ultra`. If you also have the ponytail plu
 
 Two features need your own account: image generation in `design` needs a `GEMINI_API_KEY`, and HeyGen voices and avatars in `media-use` need a HeyGen login.
 
+## Fewer tokens in every agent
+
+- **One skill to list.** Claude Code, Codex, Antigravity and the rest see `graut`, not 35 skills. Specialists are read only when a task needs them. In Claude Code the 34 direct commands add nothing to a session (measured).
+- **Lean working rules.** Graut limits command output, reads only what the task needs and keeps replies short, without skipping checks.
+- **Nothing lost.** A loaded specialist is followed in full, exactly as its author wrote it, with Graut's planning, checking and memory around it.
+
 ## Something not working?
 
 | You see | Do this |
@@ -199,6 +205,10 @@ claude plugin test .
 ```
 
 To update a specialist, change its `sha` in [sources.json](skills/graut/sources.json), run `npm run sync`, read the diff, then commit.
+
+## Contributing
+
+Ask first: see [CONTRIBUTING.md](CONTRIBUTING.md). Nothing is merged without the owner's approval.
 
 ## License and credits
 

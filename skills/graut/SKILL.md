@@ -100,6 +100,8 @@ On Windows, if `python3` fails, run `python`. If a pack's tool or package is mis
 | Is this skill or plugin safe to install | `skill-inspector` |
 | How to set up agents, commands, hooks, workflows | docs in `<GRAUT>/library/claude-code-best-practice/` |
 
+**A loaded specialist applies in full.** Follow its `PACK.md` completely, with the references and scripts it names for this job. Never work from memory or a summary of it: the result must be at least what that skill gives on its own. Graut adds to it: the plan, the chain, the proof and the memory.
+
 When packs disagree: the user's words win, then the project's rules, then the pack closest to the task. If your agent already has a better tool, use it.
 
 ## Chain them
@@ -137,7 +139,10 @@ The user picks how hard Graut works, from the panel or with `npx graut-bhar-de l
 - Load one pack at a time, when its step starts. Never preload.
 - In large packs, search for the section you need and read it, not every reference file. Run a pack's search script instead of reading its data files.
 - Do not reread what you already know or paste whole files into replies.
+- Limit command output: ask for the failing lines, the matching files, the last page, not everything.
+- Reply short: the result first, then what is unverified. No restating the request, no narrating each step, no filler.
 - Give broad searches to a subagent that returns only the conclusion.
+- Saving tokens never means skipping a read, a check or a step a specialist requires.
 
 ## Nothing fits
 
