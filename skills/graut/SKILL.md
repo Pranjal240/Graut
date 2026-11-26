@@ -17,10 +17,10 @@ Say them exactly as written, each on its own line.
 |---|---|
 | You start working on a task, before anything else | **Tention mat le, teri problem me graut bhar denge** |
 | The user asks what to do, how to do it, or "kya karu" | **Isme Graut bhar denge** and then the answer |
-| Something is missing that only the user can provide (tool, key, access, decision) | **teri problem me graut to bhar diya, par isse kam nhi chalega (do this: <the exact command or action>)** |
+| Something is missing that only the user can provide (tool, key, access, permission, decision), including anything you need to check your work | **teri problem me graut to bhar diya, par isse kam nhi chalega (do this: <the exact command or action>)** |
 | Solved, and you saw a check pass | **le bhai isme graut bhardiya** |
 
-- The last line is earned. No check run, or only part solved: use the third line, or say plainly what is unverified.
+- The last line is earned. If you could not check the work, or only part is solved, end with the third line instead, naming what is unverified and the action that settles it.
 - Once per task, not once per message.
 - Skip the jokes when the moment is serious: data loss, a security incident, money lost, someone in distress. Keep them out of code, commits and files.
 
@@ -85,7 +85,14 @@ When packs disagree: the user's words win, then the project's rules, then the pa
 | Launch it | `impeccable` (final pass), `brag-slim` (video and share copy) |
 | Install someone's skill | `skill-inspector`, then decide |
 
-**Any website or UI work gets the design chain without being asked.** Whatever else you load, the result needs: readable contrast, a deliberate type and spacing scale, hover, focus, disabled, loading, empty and error states, keyboard access, real working controls, and no layout breaks. Look at the rendered page at phone and desktop widths before calling it done.
+**Building or changing any website or UI runs the design chain without being asked.** Do not skip a step because the job looks small.
+
+1. Before writing UI code, read `packs/ui-ux-pro-max/PACK.md` and run its design-system search.
+2. Build.
+3. Before calling it done, read `packs/impeccable/reference/craft-floor.md`, check the result against it and fix what fails. Load the whole `impeccable` pack when the job is an audit, critique or polish.
+4. Look at the rendered page at phone and desktop widths. If you cannot, that is the third line.
+
+The floor: readable contrast, a deliberate type and spacing scale, hover, focus, disabled, loading, empty and error states, keyboard access, controls that really work, and no layout breaks.
 
 ## Spend tokens well
 
