@@ -12,7 +12,8 @@ Koi bhi software problem ho, usme graut bhar denge aur solve kar denge.
 by **Pranjal**
 
 ```bash
-npx graut-bhar-de
+npm install -g graut-bhar-de
+npx graut
 ```
 
 </div>
@@ -32,8 +33,8 @@ One skill for Claude Code, Codex, Antigravity and other coding agents. Say your 
 
 | How | Command |
 |---|---|
-| **Recommended** | `npx graut-bhar-de` |
-| Install globally | `npm install -g graut-bhar-de` then `graut` |
+| **Recommended** | `npm install -g graut-bhar-de` once, then `npx graut` |
+| Without installing | `npx graut-bhar-de` |
 | Claude Code plugin (with the panel) | `/plugin marketplace add Pranjal240/Graut` then `/plugin install graut@graut` |
 | `skills` CLI | `npx skills add Pranjal240/Graut -g` |
 | From GitHub | `npx --allow-git=all github:Pranjal240/Graut` |
@@ -42,7 +43,9 @@ One skill for Claude Code, Codex, Antigravity and other coding agents. Say your 
 
 Restart your agent afterwards. You need Node.js 18.3 or newer.
 
-`npm install graut-bhar-de` only downloads the package: run `npx graut-bhar-de` to set it up (npm does not run setup scripts for you). `npx graut-bhar-de` and the clone route also install missing tools and switch Graut on for every agent found; after the other routes, say "set up graut".
+Installing the package only downloads it: `npx graut` is what sets Graut up (npm does not run setup scripts for you). That command and the clone route also install missing tools and switch Graut on for every agent found; after the other routes, say "set up graut".
+
+`npx graut` works once the package is installed globally. npm does not allow a package named exactly `graut`, so without the global install use `npx graut-bhar-de`.
 
 ## The panel
 
@@ -61,7 +64,7 @@ cost $0.42 last $0.11   tokens 1.2M   time 4m 10s 3 turns   tests 11 passed   sk
 | `full` | Everything (default) |
 | `ultra` | Loads every matching specialist, plans in writing, verifies, reviews its own work |
 
-Other agents: `npx graut-bhar-de level ultra`.
+Other agents: `npx graut level ultra`.
 
 **Review** and **Audit** ask Graut for a report on your changes or project. **Doctor** shows what is missing. **Copy** puts the session figures on your clipboard. **Compact** shrinks the conversation. Cost is Claude Code's own estimate.
 
@@ -117,7 +120,7 @@ A one-line page and the prompt "make this website good" gave this (the menu item
 
 ## Commands
 
-Prefix each with `npx graut-bhar-de`.
+Prefix each with `npx graut`.
 
 | Command | Does |
 |---|---|
