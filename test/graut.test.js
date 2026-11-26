@@ -29,6 +29,8 @@ write(path.join(bundle, 'SKILL.md'), skill('graut', 'master'));
 fs.copyFileSync(path.join(GRAUT, 'levels.json'), path.join(bundle, 'levels.json'));
 write(path.join(bundle, 'packs', 'alpha', 'PACK.md'), skill('alpha', 'makes walrus things'));
 write(path.join(bundle, 'packs', 'beta', 'PACK.md'), skill('beta', 'bundled'));
+// as it arrives from a package published on Windows: not marked runnable
+write(path.join(bundle, 'packs', 'alpha', 'scripts', 'run'), '#!/bin/sh\necho ran\n');
 const index = JSON.stringify([
   { id: 'extra', name: 'extra', path: 'skills/extra', description: 'pdf tables', risk: 'safe' },
   { id: 'evil', name: 'evil', path: 'skills/../../escape', description: 'x', risk: 'safe' },
@@ -95,6 +97,10 @@ test('install leaves one graut skill, merges old copies and keeps user folders',
     assert.match(r.stdout, /Tention mat le, teri problem me graut bhar denge/);
   }
   assert.ok(fs.existsSync(path.join(claude, 'graut', 'packs', 'alpha', 'PACK.md')));
+  if (process.platform !== 'win32') {
+    const script = path.join(claude, 'graut', 'packs', 'alpha', 'scripts', 'run');
+    assert.strictEqual(execFileSync(script, { encoding: 'utf8' }), 'ran\n');
+  }
   assert.deepStrictEqual(fs.readdirSync(claude).sort(), ['beta', 'graut']);
   assert.match(read(claude, 'beta', 'SKILL.md'), /zebra/);
   assert.match(read(codex, 'graut', 'SKILL.md'), /user graut/);

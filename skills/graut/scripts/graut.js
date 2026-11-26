@@ -127,6 +127,24 @@ function stageSkill(source, repoDir, name, from) {
   return stage;
 }
 
+// A package published from Windows loses the "runnable" flag, which macOS and Linux need
+// to start a script directly. Every file that begins with #! gets it back.
+function makeRunnable(dir) {
+  if (process.platform === 'win32' || !fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== 'node_modules') makeRunnable(file);
+    } else if (entry.isFile()) {
+      const start = Buffer.alloc(2);
+      const handle = fs.openSync(file, 'r');
+      fs.readSync(handle, start, 0, 2, 0);
+      fs.closeSync(handle);
+      if (start.toString() === '#!') fs.chmodSync(file, 0o755);
+    }
+  }
+}
+
 // Never overwrites a folder Graut did not install: those carry no .graut marker.
 const isUsers = (dest) => fs.existsSync(dest) && !fs.existsSync(path.join(dest, '.graut'));
 
@@ -294,6 +312,7 @@ async function install(opts) {
     }
   }
   if (merged) console.log(`\nMerged ${merged} separate skills from an older version into Graut.`);
+  packsFolders.forEach(makeRunnable);
 
   if (autoInstall) {
     const remember = (file) => {

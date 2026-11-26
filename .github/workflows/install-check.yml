@@ -95,6 +95,8 @@ jobs:
         run: claude plugin validate . && claude plugin test .
       - name: One-command install with Claude Code and Codex
         run: |
+          # build the package the way Windows does, with no file marked runnable
+          if [ "$RUNNER_OS" != "Windows" ]; then find skills -type f -exec chmod 644 {} +; fi
           npm pack --silent
           mv graut-bhar-de-*.tgz "$RUNNER_TEMP/graut.tgz"
           mkdir -p "$HOME/.codex" "$HOME/.claude" "$RUNNER_TEMP/run" && cd "$RUNNER_TEMP/run"
@@ -119,7 +121,8 @@ jobs:
           echo "design audit finds a contrast problem"
           printf '<!doctype html><title>t</title><body style="color:#999;background:#aaa"><p>x</p></body>' > index.html
           # the detector reports findings on stderr and exits non-zero when it finds any
-          sh "$P/impeccable/scripts/impeccable" detect index.html 2>&1 | tee detect.log || true
+          # started directly, as the skill's instructions do it
+          "$P/impeccable/scripts/impeccable" detect index.html 2>&1 | tee detect.log || true
           grep -q "low-contrast" detect.log
       - name: A video renders
         run: |
