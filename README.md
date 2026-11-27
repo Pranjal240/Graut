@@ -87,7 +87,7 @@ The full guide follows: [install](#install), [upgrade](#upgrade-to-a-newer-versi
 
 Every `/graut` request about code starts by asking [CodeGraph](https://github.com/colbymchenry/codegraph) (MIT, by colbymchenry) for context: one call returns the relevant source, how it connects and what depends on it, so the agent searches and reads less. It works in every agent that can run a command, with or without the Claude Code panel.
 
-- The installer adds CodeGraph (about 280 MB) with `npm install -g @colbymchenry/codegraph`.
+- The installer adds CodeGraph (about 280 MB) with `npm install -g @colbymchenry/codegraph`. On Linux this may need `sudo`; the installer prints the exact command if it does.
 - The first request in a project builds a local index in a `.codegraph` folder, kept out of git. Your code stays on your computer.
 - Graut runs CodeGraph with its usage reporting and update check switched off.
 - Without CodeGraph, or in a folder with no code, Graut searches and reads as usual.
@@ -144,6 +144,7 @@ curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs git python3 python3-pip python3-numpy python3-scipy python3-pil ffmpeg
 curl -LsSf https://astral.sh/uv/install.sh | sh
 python3 -m pip install --user --break-system-packages google-genai
+sudo npm install -g @colbymchenry/codegraph@1.6.4
 ```
 
 Open a new terminal. On other distributions, install the same tools with your package manager.
@@ -206,7 +207,16 @@ npx graut-bhar-de@latest upgrade
 npx graut-bhar-de@latest uninstall
 ```
 
-If you installed it globally, also run `npm uninstall -g graut-bhar-de`.
+This removes the skill from every agent and the Claude Code plugin, however you added it. Then close and reopen your agent: a session that was already open shows Graut until then.
+
+Two things are separate programs and stay unless you remove them:
+
+```bash
+npm uninstall -g @colbymchenry/codegraph
+npm uninstall -g graut-bhar-de
+```
+
+The second is only needed if you installed Graut globally.
 
 ### Other ways to install
 
@@ -271,18 +281,28 @@ Graut stays quiet until it is needed. Questions, renames, small edits and ordina
 In Claude Code, Graut sits above the prompt as one line:
 
 ```text
-Graut  ● full  $0.42  last $0.11  context 42%  tests 11 passed      Review  Audit  Doctor  Details  Hide
+Graut  ● full  $0.42  last $0.11  context 42%  tests 11 passed          Review  Audit  Details  Hide
 ```
 
 **Hide** removes the bar (`/graut-panel on` brings it back). **Details** opens the full view (Graut remembers your choice):
 
 ```text
-Graut  off  lite  [full]  ultra              Copy  Review  Audit  Doctor  Compact  Hide
+Graut                                                                         Compact  Hide
+off  lite  [full]  ultra                                     Copy  Review  Audit  Doctor
 ──────────────────────────────────────────────────────────────────────────────────────────
 cost                  tokens       agent time       context            tests
 $0.42                 1.2M         4m 10s           42%                11 passed
 last $0.11 · ⌀ $0.14  3 turns      ⌀ 1m 23s / turn  84.0k of 200.0k    after last change
 ```
+
+| Button | Does |
+|---|---|
+| a level | changes how hard Graut works |
+| Review, Audit | asks Graut to check your changes, or the whole project, and report only |
+| Doctor | shows what is missing (in Details) |
+| Copy | copies the session's numbers as a table (in Details) |
+| Details, Compact | opens or closes the full view |
+| Hide | removes the bar |
 
 | Column | Meaning |
 |---|---|

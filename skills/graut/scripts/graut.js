@@ -193,6 +193,15 @@ function pluginOn(id) {
   }
 }
 
+// Whether Claude Code knows a plugin at all, switched on or off.
+function pluginKnown(id) {
+  try {
+    return id in (JSON.parse(read(path.join(CLAUDE, 'settings.json'))).enabledPlugins || {});
+  } catch {
+    return false;
+  }
+}
+
 // Claude Code's own command, pointed at the sandbox during tests.
 const claude = (...args) =>
   shell('claude', args, {
@@ -263,7 +272,7 @@ function level(name, opts) {
   for (const agent of pickAgents(opts.agents)) {
     const { memory } = AGENTS[agent];
     // Files without the note are left alone, unless "off" is what removed it.
-    if (agent === 'claude' && pluginOn('graut@graut')) {
+    if (agent === 'claude' && pluginKnown('graut@graut')) {
       deactivate(memory); // the plugin's session start reads the new level
     } else if (memory && (isActive(memory) || (before === 'off' && !opts['no-activate']))) {
       activate(memory, name);
@@ -387,7 +396,7 @@ async function install(opts) {
 
   for (const line of failed) console.log(`Failed: ${line}`);
   if (failed.length) todo.push('fix the failures above and run install again');
-  if (plugin && /ponytail@/.test(claude('plugin', 'list').stdout || '')) {
+  if (plugin && pluginOn('ponytail@ponytail')) {
     console.log('\nGraut already includes ponytail. To see only the Graut panel: claude plugin disable ponytail@ponytail');
   }
   console.log(`\n${todo.length ? SAY.need(todo.join(' ; ')) : SAY.done}`);
@@ -432,10 +441,11 @@ function uninstall(opts) {
     }
     if (memory) deactivate(memory);
   }
-  if (agents.includes('claude') && fs.existsSync(PLUGIN)) {
+  if (agents.includes('claude') && (fs.existsSync(PLUGIN) || pluginKnown('graut@graut'))) {
     claude('plugin', 'uninstall', 'graut@graut');
     claude('plugin', 'marketplace', 'remove', 'graut');
     remove(PLUGIN);
+    remove(path.join(CLAUDE, 'plugins', 'cache', 'graut')); // Claude Code leaves old copies here
     console.log('Removed the Claude Code plugin.');
   }
   if (!opts.agents) {
@@ -446,6 +456,8 @@ function uninstall(opts) {
   }
   console.log(`Removed ${removed} folders Graut installed. Your own skills were not touched.`);
   console.log('Tools and Python packages stay, because other programs may use them.');
+  if (hasCodeGraph()) console.log('CodeGraph stays too. To remove it: npm uninstall -g @colbymchenry/codegraph');
+  console.log('Close and reopen your agent: a session that is already open shows Graut until then.');
   return 0;
 }
 
@@ -453,16 +465,23 @@ function doctor(opts) {
   const names = coreNames(loadManifest());
   const packsFolders = [];
   const skillLines = [];
+  const bare = []; // agents found on this machine that Graut is not installed for
   let absent = 0;
   for (const agent of pickAgents(opts.agents)) {
     const asPlugin = agent === 'claude' && (isPlugin() || fs.existsSync(PLUGIN));
     const dir = asPlugin ? (isPlugin() ? SKILL_DIR : path.join(PLUGIN, 'skills', 'graut')) : path.join(AGENTS[agent].skills, 'graut');
     const found = fs.existsSync(path.join(dir, 'SKILL.md')) ? havePacks(path.join(dir, 'packs'), names).length : 0;
+    if (!found && !opts.agents) {
+      bare.push(agent);
+      continue;
+    }
     absent += names.length - found;
     if (found) packsFolders.push(path.join(dir, 'packs'));
     skillLines.push(`${agent}: ${found}/${names.length} skills inside graut${asPlugin ? ' (plugin, with the panel)' : ''}`);
   }
   const todo = report(packsFolders);
+  if (!skillLines.length) absent += 1; // installed nowhere
+  else if (bare.length) skillLines.push(`note    not installed for ${bare.join(', ')} (add with: ${CMD} --agents ${bare.join(',')})`);
   console.log(`\n${skillLines.join('\n')}`);
   if (absent) todo.push(`run: ${CMD}`);
   console.log(`\n${todo.length ? SAY.need([...new Set(todo)].join(' ; ')) : SAY.done}`);
@@ -632,6 +651,7 @@ Options
   --allow-risky        with add: add it even if the scan fails or is missing`;
 
 function main(argv) {
+  if (argv[0] === 'context') return gather(argv.slice(1));
   const flag = { type: 'boolean' };
   const { values, positionals } = parseArgs({
     args: argv,
@@ -657,7 +677,6 @@ function main(argv) {
   if (command === 'hook') return hook();
   if (command === 'level') return level(rest[0], values);
   if (command === 'panel') return panel(rest[0]);
-  if (command === 'context') return gather(rest);
   if (command === 'find') return find(rest);
   if (command === 'add' && rest[0]) return add(rest[0], values);
   console.log(HELP);

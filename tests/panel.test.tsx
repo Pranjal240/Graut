@@ -1,5 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
+import { TEST_COMMAND, clock } from '../hooks/metrics'
+
 const BAND = {
   plugin: 'graut',
   component: 'AbovePrompt',
@@ -19,7 +21,9 @@ test('the panel starts as one line headed only Graut', async $ => {
     const ui = await $.ui.mount({ ...BAND, surface })
     expect((await ui.find({ type: 'Text', text: /graut/i }))?.text).toBe('Graut')
     expect(await ui.find({ type: 'Text', text: /pranjal|bhar/i })).toBeUndefined()
-    for (const key of ['level', 'review', 'audit', 'doctor', 'details', 'hide']) expect(await ui.find({ key })).toBeDefined()
+    for (const key of ['level', 'review', 'audit', 'details', 'hide']) expect(await ui.find({ key })).toBeDefined()
+    // the one-line view keeps to the buttons that fit; Doctor is in Details
+    expect(await ui.find({ key: 'doctor' })).toBeUndefined()
     expect(await ui.find({ key: 'level-ultra' })).toBeUndefined()
     await ui.unmount()
   }
@@ -30,9 +34,16 @@ test('Details shows the levels and columns, drawn as an image on desktop, and Co
   for (const surface of ['terminal', 'desktop', 'vscode'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
     await ui.press({ key: 'details' })
-    for (const key of ['level-off', 'level-lite', 'level-full', 'level-ultra', 'copy']) {
+    for (const key of ['level-off', 'level-lite', 'level-full', 'level-ultra', 'copy', 'doctor', 'hide']) {
       expect(await ui.find({ key })).toBeDefined()
     }
+    // view buttons share the title's line, and each other group moves as one piece in a narrow pane
+    const inside = async (key: string) => JSON.stringify(await ui.find({ key }))
+    expect(await inside('head')).toMatch(/Compact[^]*Hide/)
+    expect(await inside('head')).not.toMatch(/Copy|Review|ultra/)
+    expect(await inside('actions')).toMatch(/Copy[^]*Review[^]*Audit[^]*Doctor/)
+    expect(await inside('actions')).not.toMatch(/Compact|Hide/)
+    expect(await inside('levels')).toMatch(/ultra/)
     expect((await ui.find({ type: 'Svg' })) !== undefined).toBe(surface === 'desktop')
     // the character divider is a terminal drawing: an image replaces it on desktop
     expect((await ui.find({ type: 'Text', text: /^agent time$/ })) !== undefined).toBe(surface !== 'desktop')
@@ -225,5 +236,51 @@ test('answers from the code index are counted, and empty ones are not', async ($
   text = 'Exploration: more'
   await $.tool.call({ tool: 'mcp__codegraph__codegraph_explore', query: 'pay' } as never)
   expect(await ui.find({ type: 'Text', text: /^code index 2×$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('only real test runs count, and long times read in hours', async () => {
+  for (const command of [
+    'npm test',
+    'cd app && npm run test',
+    'CI=1 timeout 600 pytest -q',
+    'python -m pytest tests',
+    'PYTHONUTF8=1 "C:/venv/Scripts/python.exe" -m pytest',
+    './node_modules/.bin/jest',
+    'node --test test/graut.test.js',
+    'npx vitest run',
+    'go test ./...',
+    'claude plugin test .',
+  ]) {
+    expect([command, TEST_COMMAND.test(command)]).toEqual([command, true])
+  }
+  for (const command of [
+    'grep -rn pytest .',
+    'pip install pytest',
+    'npm install --save-dev jest',
+    'echo "run npm test before pushing"',
+    'cat jest.config.js',
+    'git commit -m "fix npm test"',
+    'ls tests',
+  ]) {
+    expect([command, TEST_COMMAND.test(command)]).toEqual([command, false])
+  }
+  expect([clock(45000), clock(197000), clock(4074000)]).toEqual(['45s', '3m 17s', '1h 7m'])
+})
+
+test('after an uninstall an open session drops the panel at the next message', async ($, on) => {
+  mock.store(on)
+  mock.env(on, { HOME: '/home/u' })
+  let there = true
+  on('fs.exists', () => ({ value: there }))
+  on('fs.read', () => ({ value: '' }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  const say = () => $.prompt.submit({ text: 'hello', wait: false, origin: { kind: 'composer' } })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  await say()
+  expect(await ui.find({ key: 'review' })).toBeDefined()
+  there = false
+  await say()
+  expect(await ui.find({ key: 'review' })).toBeUndefined()
   await ui.unmount()
 })

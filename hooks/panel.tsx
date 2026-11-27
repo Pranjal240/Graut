@@ -46,6 +46,9 @@ const savedLevel = async ($: EngineInterface): Promise<Level> => {
 const savedHidden = async ($: EngineInterface) =>
   (await $.fs.read(await settingFile($, 'panel')).catch(() => '')).trim() === 'off'
 
+const isRemoved = async ($: EngineInterface) =>
+  !(await $.fs.exists(`${$.plugin.root}/hooks/hooks.json`).catch(() => true))
+
 const setHidden = async ($: EngineInterface, next: boolean) => {
   await $.fs.write(await settingFile($, 'panel'), next ? 'off\n' : 'on\n')
   await update($, hidden, () => next)
@@ -161,8 +164,8 @@ export const register: Register = on => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    // `graut panel off` from a terminal reaches an open session at its next message.
-    const off = await savedHidden($)
+    // `graut panel off` or an uninstall from a terminal reaches an open session at its next message.
+    const off = (await isRemoved($)) || (await savedHidden($))
     await update($, hidden, () => off)
     const current = await read($, level)
     if (current === (announced ?? current)) return next(e)
@@ -312,10 +315,12 @@ export const register: Register = on => {
         Graut
       </Text>
     )
-    const actions = [
+    // Buttons sit in groups, so a narrow pane moves a whole group down and never strands one button.
+    const work = [
       <Button key="review" plain label="Review" onPress={() => ask('review the current changes for bugs and bloat; report only')} />,
       <Button key="audit" plain label="Audit" onPress={() => ask('audit this project for bugs, security, accessibility and bloat; report only')} />,
-      <Button key="doctor" plain label="Doctor" onPress={() => doctor().catch(failed('doctor (is Node.js installed?)'))} />,
+    ]
+    const view = [
       <Button key="details" plain label={isOpen ? 'Compact' : 'Details'} onPress={toggle} />,
       <Button key="hide" plain label="Hide" onPress={() => setHidden($, true).then(() => $.ui.toast(HIDDEN_NOTE)).catch(failed('hiding the panel'))} />,
     ]
@@ -334,19 +339,24 @@ export const register: Register = on => {
     if (!isOpen) {
       return stack(
         <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} width={width}>
-          {title}
-          <Button key="level" plain onPress={toggle}>
-            <Text color={current === 'off' ? 'inactive' : 'suggestion'}>●</Text> {current}
-          </Button>
-          <Text>{money(s.costUsd)}</Text>
-          {last === undefined ? null : <Text dimColor>last {money(last)}</Text>}
-          {s.context ? <Text color={isFull ? 'warning' : undefined}>context {s.context.percent}%</Text> : null}
-          {s.lookups ? <Text color="success">code index {s.lookups}×</Text> : null}
-          {reuse === undefined ? null : <Text>{reuse}% reuse</Text>}
-          {s.openCallers.length ? <Text color="warning">⚠ {s.openCallers.length} callers open</Text> : null}
-          {s.tests.state === 'none' ? null : <Text color={testsColor}>tests {testsText(s.tests)}</Text>}
+          <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2}>
+            {title}
+            <Button key="level" plain onPress={toggle}>
+              <Text color={current === 'off' ? 'inactive' : 'suggestion'}>●</Text> {current}
+            </Button>
+            <Text>{money(s.costUsd)}</Text>
+            {last === undefined ? null : <Text dimColor>last {money(last)}</Text>}
+            {s.context ? <Text color={isFull ? 'warning' : undefined}>context {s.context.percent}%</Text> : null}
+            {s.lookups ? <Text color="success">code index {s.lookups}×</Text> : null}
+            {reuse === undefined ? null : <Text>{reuse}% reuse</Text>}
+            {s.openCallers.length ? <Text color="warning">⚠ {s.openCallers.length} callers open</Text> : null}
+            {s.tests.state === 'none' ? null : <Text color={testsColor}>tests {testsText(s.tests)}</Text>}
+          </Box>
           <Box flexGrow={1} />
-          {actions}
+          <Box key="actions" flexDirection="row" alignItems="center" columnGap={1}>
+            {work}
+            {view}
+          </Box>
         </Box>,
       )
     }
@@ -419,19 +429,30 @@ export const register: Register = on => {
     return stack(
       // The image draws its own line at the top, which would touch the buttons without the gap.
       <Box flexDirection="column" width={width} gap={e.surface === 'desktop' ? 1 : 0}>
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={1}>
-          {title}
-          {LEVELS.map(l => (
-            <Button
-              key={`level-${l}`}
-              label={l}
-              {...(l === current ? { variant: 'primary' as const } : { plain: true as const, dimColor: true })}
-              onPress={() => choose(l).catch(failed('saving the level'))}
-            />
-          ))}
-          <Box flexGrow={1} />
-          <Button key="copy" plain label="Copy" onPress={() => copy().catch(failed('copy'))} />
-          {actions}
+        <Box flexDirection="column">
+          <Box key="head" flexDirection="row" alignItems="center" columnGap={1}>
+            {title}
+            <Box flexGrow={1} />
+            {view}
+          </Box>
+          <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={1}>
+            <Box key="levels" flexDirection="row" alignItems="center" columnGap={1}>
+              {LEVELS.map(l => (
+                <Button
+                  key={`level-${l}`}
+                  label={l}
+                  {...(l === current ? { variant: 'primary' as const } : { plain: true as const, dimColor: true })}
+                  onPress={() => choose(l).catch(failed('saving the level'))}
+                />
+              ))}
+            </Box>
+            <Box flexGrow={1} />
+            <Box key="actions" flexDirection="row" alignItems="center" columnGap={1}>
+              <Button key="copy" plain label="Copy" onPress={() => copy().catch(failed('copy'))} />
+              {work}
+              <Button key="doctor" plain label="Doctor" onPress={() => doctor().catch(failed('doctor (is Node.js installed?)'))} />
+            </Box>
+          </Box>
         </Box>
         {metrics}
       </Box>,

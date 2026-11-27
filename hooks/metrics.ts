@@ -8,7 +8,9 @@ export const money = (usd: number | null) => (usd === null ? 'n/a' : `$${usd.toF
 export const count = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${n}`)
 export const clock = (ms: number) => {
   const s = Math.round(ms / 1000)
-  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
+  if (s < 60) return `${s}s`
+  const minutes = Math.floor(s / 60)
+  return minutes < 60 ? `${minutes}m ${s % 60}s` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 /** The last turns' costs as small bars, for surfaces that cannot draw an image. */
 export const bars = (costs: readonly number[]) => {
@@ -16,8 +18,11 @@ export const bars = (costs: readonly number[]) => {
   return costs.map(c => '▁▂▃▄▅▆▇█'[top > 0 ? Math.round((Math.max(c, 0) / top) * 7) : 0]).join('')
 }
 
-export const TEST_COMMAND =
-  /\b(npm|pnpm|yarn|bun)\s+(run\s+)?test\b|\bnode\s+(--test\b|\S*test\S*\.[cm]?js\b)|\b(pytest|jest|vitest|mocha|phpunit|rspec)\b|\b(go|cargo|dotnet|mvn|gradle|deno|make|plugin)\s+test\b/
+// A runner counts only where a command starts, so reading about tests (`grep pytest`, `npm install jest`) is not a run.
+// Before it may come settings and wrappers: `CI=1 timeout 60 python -m pytest`.
+const BEFORE = String.raw`(?:^|[;&|(\n])\s*(?:(?:[A-Za-z_]\w*=(?:"[^"]*"|'[^']*'|\S*)|sudo|time|npx|bunx|uv\s+run|timeout\s+\S+|(?:"[^"]*|\S*)python3?(?:\.exe)?"?\s+-m)\s+)*(?:\S*[\\/])?`
+const RUNNERS = String.raw`(?:(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test(?![\w.-])|node\s+(?:--?\S+\s+)*(?:--test(?![\w-])|\S*test\S*\.[cm]?js)|(?:pytest|jest|vitest|mocha|phpunit|rspec)(?![\w.=-])|(?:go|cargo|dotnet|mvn|gradlew?|deno|make)\s+test(?![\w.-])|claude\s+plugin\s+test(?![\w-]))`
+export const TEST_COMMAND = new RegExp(BEFORE + RUNNERS)
 
 /** Reads a test run's summary. Any reported failure counts; a command that errors after a clear zero passed. */
 export const readTests = (output: string, failedExit: boolean): Tests => {

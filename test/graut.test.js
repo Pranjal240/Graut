@@ -243,6 +243,47 @@ test('an installed skill names its own folder, so no model has to work it out', 
   assert.doesNotMatch(installed, /<GRAUT>/);
 });
 
+test('uninstall removes a plugin added from GitHub, its old copies, and says what stays', () => {
+  const elsewhere = path.join(tmp, 'gone-home');
+  const cache = path.join(elsewhere, '.claude', 'plugins', 'cache', 'graut', 'graut', '1.0.0');
+  write(path.join(cache, 'x'), 'old');
+  // switched off, and never copied to ~/.graut: still Graut's to remove
+  write(path.join(elsewhere, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'graut@graut': false } }));
+  write(path.join(elsewhere, '.claude', 'CLAUDE.md'), 'mine\n');
+  const run = (...args) =>
+    spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), ...args], { cwd: tmp, encoding: 'utf8', env: { ...sandbox, GRAUT_HOME: elsewhere } });
+  // a switched-off plugin does not get a note that points at it
+  assert.strictEqual(run('level', 'ultra', '--agents', 'claude').status, 0);
+  assert.strictEqual(read(elsewhere, '.claude', 'CLAUDE.md').trim(), 'mine');
+  const r = run('uninstall');
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /Removed the Claude Code plugin[^]*Close and reopen your agent/);
+  assert.ok(!fs.existsSync(path.join(elsewhere, '.claude', 'plugins', 'cache', 'graut')));
+});
+
+test('doctor does not fail over an agent Graut was never installed for', () => {
+  const elsewhere = path.join(tmp, 'doctor-home');
+  fs.mkdirSync(path.join(elsewhere, '.cursor'), { recursive: true });
+  fs.mkdirSync(path.join(elsewhere, '.codex'), { recursive: true });
+  const run = (...args) =>
+    spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), ...args], { cwd: tmp, encoding: 'utf8', env: { ...sandbox, GRAUT_HOME: elsewhere } });
+  assert.strictEqual(run('install', '--agents', 'codex', '--no-system-deps').status, 0);
+  const out = run('doctor').stdout;
+  assert.match(out, /codex: 2\/2 skills inside graut/);
+  assert.match(out, /not installed for cursor \(add with: npx graut-bhar-de --agents cursor\)/);
+  assert.doesNotMatch(out, /cursor: 0/);
+  // asked for by name, a missing install is still reported
+  assert.match(run('doctor', '--agents', 'cursor').stdout, /cursor: 0\/2 skills inside graut/);
+});
+
+test('words after context are the question, even ones that look like options', () => {
+  const empty = path.join(tmp, 'no-code');
+  fs.mkdirSync(empty, { recursive: true });
+  const r = spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), 'context', '--no-such-option', 'pay'], { cwd: empty, encoding: 'utf8', env: sandbox });
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.match(r.stdout, /No code context/);
+});
+
 test('find searches packs, other local skills and the catalog', () => {
   assert.match(graut('find', 'walrus').stdout, /Already on this machine[\s\S]*alpha[\s\S]*PACK\.md/);
   assert.match(graut('find', 'zebra').stdout, /beta/);
@@ -296,6 +337,8 @@ if (process.argv.slice(2).join(' ') === 'plugin list') console.log('graut@graut\
   write(path.join(pkg, '.claude-plugin', 'plugin.json'), '{}');
   write(path.join(pkg, 'commands', 'alpha.md'), 'x');
   write(path.join(home2, '.claude', 'skills', 'graut', '.graut'), 'Pranjal240/Graut\n');
+  // the tip about ponytail is for a plugin that is switched on, not merely listed
+  write(path.join(home2, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'ponytail@ponytail': true } }));
   const withClaude = (...args) =>
     spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), ...args], {
       cwd: tmp,

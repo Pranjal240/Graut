@@ -156,7 +156,7 @@ When packs disagree: the user's words win, then the project's rules, then the pa
 
 1. Before writing UI code, read `packs/ui-ux-pro-max/PACK.md` and run its design-system search.
 2. Build.
-3. Before calling it done, read `packs/impeccable/reference/craft-floor.md`, check the result against it and fix what fails. Load the whole `impeccable` pack when the job is an audit, critique or polish.
+3. Before calling it done, read `packs/impeccable/reference/craft-floor.md`, check the result against it and fix what fails.
 4. Look at the rendered page at phone and desktop widths. If you cannot, that is the third line.
 
 The floor: readable contrast, a deliberate type and spacing scale, hover, focus, disabled, loading, empty and error states, keyboard access, controls that really work, and no layout breaks.
