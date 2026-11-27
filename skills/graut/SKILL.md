@@ -1,6 +1,6 @@
 ---
 name: graut
-description: Graut, one skill with 36 bundled specialists. Use when the user calls it (/graut, "graut" or "kya karu"), or when a task needs a specialist, such as building or redesigning a website or UI, UI or accessibility review, branding, slides, launch or explainer videos, high-risk changes (auth, payments, data migration), hard debugging, over-engineering review or audit, or finding, making or safety-checking a skill. Never for a question, a rename, a small edit or an ordinary bug fix; do those directly, without this skill.
+description: Graut, one skill with 36 bundled specialists. Call it before doing the work yourself, whether or not the user names it, for any review or audit (UI, accessibility, security, over-engineering or before a release), for building or redesigning a website or UI, branding, slides, launch or explainer videos, high-risk changes (login, payments, user data, migrations), hard debugging, and finding, making or safety-checking a skill; also whenever the user calls it (/graut, "graut" or "kya karu"). Never for a question, a rename, a small edit or an ordinary bug fix; do those directly, without this skill.
 argument-hint: "[task]  or  [specialist name] [task]"
 license: MIT
 ---
@@ -9,18 +9,50 @@ license: MIT
 
 You are the lead. One request comes in; you work out what it really needs, load only the expertise that helps, finish it and prove it. `<GRAUT>` below is the folder that holds this file.
 
+## First, every time
+
+Do both before any other work.
+
+**1. Read the specialists the job needs.** For each name below that fits, read `<GRAUT>/packs/<name>/PACK.md` and follow it. This is not optional, however easy the job looks.
+
+| The job | Read all of these |
+|---|---|
+| Audit or release check | `ponytail-audit`, plus `web-design-guidelines` if it has a UI, plus `gravitas-highstakes` if it has login, money or user data |
+| Build or redesign a website or UI | `ui-ux-pro-max` and `impeccable` |
+| Review UI or accessibility | `web-design-guidelines` |
+| Review for over-engineering or a code change | `ponytail-review` |
+| Anything else | the rows that match under "Load" |
+
+**2. Gather code context.** Before any search or file read, in a project with code, run this from the project folder. A question counts too.
+
+```bash
+node "<GRAUT>/scripts/graut.js" context "<names of the symbols, files or behaviour the task is about>"
+```
+
+`<GRAUT>` is the folder of this `SKILL.md`, the one that also holds `scripts/` and `packs/`. Use its full path.
+
+It uses CodeGraph, a local index of the project: one call returns the relevant source, how it connects and what depends on it.
+
+- Ask with names, such as `context "createOrder payment retry"`. One call is usually enough; ask again only for a different part of the code.
+- Treat what it prints as already read. Search or read only for what it leaves out.
+- A `codegraph_explore` tool, if you have one, does the same job: use one of them, not both.
+- The first call in a project builds the index in a `.codegraph` folder that stays out of git. That can take a minute.
+- A line starting "No code context" means go on without it. If it names an install command, mention it to the user once, at the end.
+- Skip it only when the task has nothing to do with code.
+
 ## The short version
 
 Do these in order. Small models: follow them literally.
 
 1. Say the start line.
-2. Read the files before you change them.
-3. Say the goal and the check that will prove it, in one line each.
-4. If the table under "Load" matches the task, read that file and follow it.
-5. Make the smallest complete change.
-6. Website or UI work: read `<GRAUT>/packs/impeccable/reference/craft-floor.md` and fix what fails it. The task is not done before this.
-7. Run the check. Failed: read the error, change something, run again.
-8. Passed: say what changed and the last line. Could not check: say the third line.
+2. Do both steps under "First, every time": the specialists, then the code context.
+3. Read the files you will change. Do not read again what step 2 already showed in full.
+4. Say the goal and the check that will prove it, in one line each.
+5. If the table under "Load" matches the task, read that file and follow it.
+6. Make the smallest complete change.
+7. Website or UI work: read `<GRAUT>/packs/impeccable/reference/craft-floor.md` and fix what fails it. The task is not done before this.
+8. Run the check. Failed: read the error, change something, run again.
+9. Passed: say what changed and the last line. Could not check: say the third line.
 
 Never invent a file, a function, a command output or a result. Look, or say you do not know.
 
@@ -115,7 +147,10 @@ When packs disagree: the user's words win, then the project's rules, then the pa
 | Redesign | `impeccable` (critique), `ui-ux-pro-max` (direction), `impeccable` (build, polish) |
 | Risky production change | `gravitas-highstakes`, language pack, `ponytail-review` |
 | Launch it | `impeccable` (final pass), `brag-slim` (video and share copy) |
+| Audit before a release | `ponytail-audit`; `web-design-guidelines` if there is a UI; `gravitas-highstakes` if there is login, money or user data |
 | Install someone's skill | `skill-inspector`, then decide |
+
+**Use every specialist the task needs, not only the first that matches, and none it does not.** When several reviews or audits are needed and your host has subagents, give each specialist its own, run them together and merge the findings, dropping repeats. Without subagents, run them one after another. Say at the end which specialists you used.
 
 **Building or changing any website or UI runs the design chain without being asked.** Do not skip a step because the job looks small.
 
@@ -139,6 +174,7 @@ The user picks how hard Graut works, from the panel or with `npx graut-bhar-de l
 
 ## Spend tokens well
 
+- Ask for code context before reading files; it replaces many searches and reads.
 - Load one pack at a time, when its step starts. Never preload.
 - In large packs, search for the section you need and read it, not every reference file. Run a pack's search script instead of reading its data files.
 - Do not reread what you already know or paste whole files into replies.
@@ -167,7 +203,7 @@ Split when two or more parts need nothing from each other, write different files
 ```
 Role:
 Goal:
-Context: (relevant memory lines, file paths, which pack to read)
+Context: (relevant memory lines, file paths, which pack to read, the `context` command above)
 You own: (files you may change)
 Do not touch:
 Done when: (a check it can run)

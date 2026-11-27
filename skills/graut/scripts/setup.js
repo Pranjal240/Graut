@@ -2,7 +2,9 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawnSync } = require('child_process');
+const codegraph = require('./context.js');
 
 const WINDOWS = process.platform === 'win32';
 const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', ...opts });
@@ -23,6 +25,8 @@ const TOOLS = {
   python: ['python', '--version', 'Python.Python.3.13', 'python', 'sudo apt install python3', 'design skills, gravitas, huashu-nuwa'],
   ffmpeg: ['ffmpeg', '-version', 'Gyan.FFmpeg.Essentials', 'ffmpeg', 'sudo apt install ffmpeg', 'brag, hyperframes and every video skill'],
 };
+// a global npm install needs administrator rights on most Linux setups
+const CODEGRAPH_FIX = `${process.platform === 'linux' ? 'sudo ' : ''}${codegraph.INSTALL}`;
 // import name -> pip name
 const MODULES = { numpy: 'numpy', scipy: 'scipy', PIL: 'pillow', 'google.genai': 'google-genai' };
 
@@ -134,6 +138,13 @@ function prepare(packsFolders, remember) {
     step('design engine (impeccable)', engine(packs, '--version', { timeout: 300000 })?.status === 0, 'check your connection, then run install again');
   }
 
+  if (!codegraph.installed()) {
+    console.log('  installing CodeGraph for code context (about 280 MB) ...');
+    const args = ['install', '-g', '--no-audit', '--no-fund', '--loglevel=error', codegraph.PACKAGE];
+    npm('npm', args, { cwd: os.tmpdir(), stdio: 'inherit', timeout: 600000 });
+  }
+  step('CodeGraph (code context)', codegraph.installed(), CODEGRAPH_FIX);
+
   console.log('  fetching the video tool ...');
   const video = npm('npx', ['--yes', 'hyperframes@latest', '--version'], { timeout: 300000 }).status === 0;
   step('video tool (hyperframes)', video, 'check your connection, then run: npx --yes hyperframes@latest --version');
@@ -154,6 +165,7 @@ function report(packsFolders) {
     const missing = missingModules(py);
     line(!missing.length, 'Python packages', 'design, day-in-my-life', missing.length && pipCommand(py, missing));
   }
+  line(codegraph.installed(), 'CodeGraph', 'code context for every /graut call', CODEGRAPH_FIX);
   const bare = packsFolders.flatMap(nodeFolders);
   line(!bare.length, 'skill packages', 'day-in-my-life, session-story, p5-paint-animation', 'run install again');
   line(Number(process.versions.node.split('.')[0]) >= 22, 'Node.js 22 or newer', 'video skills', 'upgrade Node.js');

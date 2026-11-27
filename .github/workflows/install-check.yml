@@ -31,7 +31,7 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           python3 -m pip install --user --break-system-packages google-genai
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build the package from this commit
         run: npm pack --silent && mv graut-bhar-de-*.tgz /tmp/graut.tgz
       - name: One-command install
@@ -48,6 +48,17 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           cd /tmp/run && npx --yes --package /tmp/graut.tgz graut-bhar-de doctor --agents codex
+      - name: Every skill's own tools
+        shell: bash
+        run: npm run test:skills
+      - name: Code context really runs
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          mkdir -p /tmp/proj/src && cd /tmp/proj
+          echo 'export function formatRupees(amount) { return amount }' > src/money.js
+          node "$HOME/.agents/skills/graut/scripts/graut.js" context formatRupees | tee context.log
+          grep -q "money.js" context.log
       - name: Global install, then npx graut
         shell: bash
         run: |
@@ -65,8 +76,8 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: System tools (Linux)
@@ -124,12 +135,52 @@ jobs:
           # started directly, as the skill's instructions do it
           "$P/impeccable/scripts/impeccable" detect index.html 2>&1 | tee detect.log || true
           grep -q "low-contrast" detect.log
+      - name: Every skill's own tools
+        run: npm run test:skills
+      - name: The skills' own test suites
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=python; EXTRA=""; else PY=python3; EXTRA="--user --break-system-packages"; fi
+          $PY -m pip install --quiet $EXTRA pytest pytest-mock pytest-cov
+          cd skills/graut/packs
+          for pack in design-system brand ui-styling; do $PY -m pytest "$pack/scripts/tests" -q -p no:cacheprovider; done
+          # the five skipped files test the author's own repository, which is not bundled
+          T=ui-ux-pro-max/scripts/tests
+          $PY -m pytest "$T" -q -p no:cacheprovider --ignore="$T/test_catalog_refresh.py" --ignore="$T/test_catalog_summary_line_endings.py" --ignore="$T/test_design_system_tokens.py" --ignore="$T/test_relevance_evaluator.py" --ignore="$T/test_skill_script_paths.py"
+      - name: Music beat analysis (brag)
+        run: |
+          P="$HOME/.agents/skills/graut/packs/brag/scripts"
+          mkdir -p "$RUNNER_TEMP/beat" && cd "$RUNNER_TEMP/beat"
+          ffmpeg -loglevel error -f lavfi -i "sine=frequency=440:beep_factor=4:duration=12" beat.wav
+          uv run --project "$P" python "$P/analyze_music_cues.py" beat.wav --output-json cues.json --output-md cues.md
+          test -s cues.json
+          uv run --project "$P" --with pytest python -m pytest "$P/tests" -q -p no:cacheprovider
+      - name: Skill security scan (skill-inspector)
+        run: |
+          S=$(command -v skillspector || echo "$(uv tool dir --bin)/skillspector")
+          cd "$RUNNER_TEMP"
+          "$S" scan "$HOME/.agents/skills/graut/packs/web-design-guidelines" --no-llm --format json --output scan.json || true
+          test -s scan.json
+      - name: Finding more skills
+        run: node "$HOME/.agents/skills/graut/scripts/graut.js" find "kubernetes deploy" | grep -i kubernetes
+      - name: Code context really runs
+        run: |
+          mkdir -p "$RUNNER_TEMP/proj/src" && cd "$RUNNER_TEMP/proj"
+          echo 'export function formatRupees(amount) { return amount }' > src/money.js
+          node "$HOME/.agents/skills/graut/scripts/graut.js" context formatRupees | tee context.log
+          grep -q "money.js" context.log
       - name: A video renders
         run: |
           cd "$RUNNER_TEMP/skills"
           npx --yes hyperframes@latest init demo --non-interactive --skip-skills --example blank
           cd demo && npx --yes hyperframes@latest render -o out.mp4
           test -s out.mp4
+      - name: A skill's video project renders (x-posting-license)
+        run: |
+          P="$HOME/.agents/skills/graut/packs"
+          cp assets/icon.jpg "$RUNNER_TEMP/avatar.jpg" && cd "$RUNNER_TEMP/skills"
+          node "$P/x-posting-license/scripts/build.mjs" --out license --name Demo --handle demo --joined "JAN 2026" --followers 1 --following 2 --posts 3 --bio hi --avatar "$RUNNER_TEMP/avatar.jpg"
+          npx --yes hyperframes@latest render license -o license.mp4
+          test -s license.mp4
       - name: Global install, then npx graut
         run: |
           npm install -g "$RUNNER_TEMP/graut.tgz"

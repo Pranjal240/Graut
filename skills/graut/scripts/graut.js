@@ -6,6 +6,7 @@ const path = require('path');
 const { parseArgs } = require('util');
 const { run, works, shell, npm, ensureTool, fixFor, TOOLS, prepare, report } = require('./setup.js');
 const { buildMap } = require('./map.js');
+const { context, installed: hasCodeGraph, indexedRoot } = require('./context.js');
 
 const SKILL_DIR = path.dirname(__dirname);
 // The npm package or clone this script runs from; it also holds the Claude Code plugin.
@@ -159,6 +160,20 @@ function place(from, dest, tag) {
   return 'installed';
 }
 
+// Writes an installed skill's own folder into its instructions: a model that has to work the path
+// out sometimes gets it wrong, and then runs without its tools.
+function pinPaths(skillDir) {
+  const file = path.join(skillDir, 'SKILL.md');
+  if (!fs.existsSync(file)) return;
+  const folder = path.resolve(skillDir).split(path.sep).join('/');
+  const text = fs
+    .readFileSync(file, 'utf8')
+    .replace(/`<GRAUT>` is the folder of this [^\n]*Use its full path\./, () => `The Graut folder is \`${folder}\`.`)
+    .split('<GRAUT>')
+    .join(folder);
+  fs.writeFileSync(file, text);
+}
+
 // Removes folders an earlier Graut install made, never the user's own.
 function removeOurs(skillsDir, names) {
   return names.filter((name) => {
@@ -191,11 +206,12 @@ function installPlugin() {
   if (claude('--version').status !== 0) return false;
   if (path.resolve(PACKAGE) !== path.resolve(PLUGIN)) {
     remove(PLUGIN);
-    for (const part of ['.claude-plugin', 'assets', 'commands', 'hooks', 'skills', 'types']) {
+    for (const part of ['.claude-plugin', 'assets', 'commands', 'hooks', 'skills', 'types', 'README.md', 'LICENSE']) {
       const from = path.join(PACKAGE, part);
       if (fs.existsSync(from)) fs.cpSync(from, path.join(PLUGIN, part), { recursive: true, filter: noLinks });
     }
   }
+  pinPaths(path.join(PLUGIN, 'skills', 'graut'));
   claude('plugin', 'marketplace', 'remove', 'graut'); // an older source of the same name would win
   if (claude('plugin', 'marketplace', 'add', PLUGIN).status !== 0) return false;
   claude('plugin', 'install', 'graut@graut');
@@ -271,6 +287,22 @@ function panel(name) {
   return 0;
 }
 
+// `graut context "<words>"` gathers code context; `graut context off` stops it everywhere.
+function gather(words) {
+  const file = at('.graut', 'context');
+  if (words.length === 1 && (words[0] === 'on' || words[0] === 'off')) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, `${words[0]}\n`);
+    console.log(`Graut code context: ${words[0]}.\n\n${SAY.done}`);
+    return 0;
+  }
+  if (read(file).trim() === 'off') {
+    console.log('No code context: the user switched it off. Search and read the files you need instead.');
+    return 0;
+  }
+  return context(words.join(' '), { home: HOME });
+}
+
 function findScanner() {
   if (works('skillspector', ['--help'])) return 'skillspector';
   const r = run('uv', ['tool', 'dir', '--bin']);
@@ -326,7 +358,7 @@ async function install(opts) {
       } else if (isUsers(dest)) {
         console.log(`${agent}: kept your own "graut" folder at ${dest}`);
       } else {
-        place(SKILL_DIR, dest, TAG);
+        if (place(SKILL_DIR, dest, TAG) === 'installed') pinPaths(dest);
         packsFolders.push(path.join(dest, 'packs'));
         console.log(`${agent}: graut installed with ${havePacks(path.join(dest, 'packs'), names).length} skills inside`);
         if (agent === 'claude' && !opts['no-plugin']) {
@@ -359,6 +391,9 @@ async function install(opts) {
     console.log('\nGraut already includes ponytail. To see only the Graut panel: claude plugin disable ponytail@ponytail');
   }
   console.log(`\n${todo.length ? SAY.need(todo.join(' ; ')) : SAY.done}`);
+  if (read(at('.graut', 'context')).trim() !== 'off' && hasCodeGraph()) {
+    console.log('Code context is on: Graut asks CodeGraph for the code a task needs, so your agent searches and reads less.');
+  }
   console.log('Restart your agent to load Graut.');
   if (plugin) console.log('In Claude Code: /graut:graut for anything, or one skill directly, such as /graut:impeccable.');
   return failed.length ? 1 : 0;
@@ -446,6 +481,13 @@ function hook() {
   }
   if (!read(AGENTS.claude.memory).includes(text)) console.log(text);
   const here = path.resolve(process.cwd());
+  // Where an index already exists, asking it first costs less than searching, with or without the skill.
+  if (level !== 'lite' && read(at('.graut', 'context')).trim() !== 'off' && indexedRoot(here, HOME)) {
+    const script = path.join(SKILL_DIR, 'scripts', 'graut.js').split(path.sep).join('/');
+    console.log(
+      `This project has a code index. For how code works or what depends on it, run \`node "${script}" context "<symbol or file names>"\` (or codegraph_explore) before searching, and treat its output as already read.`
+    );
+  }
   // ponytail prints the same map; a home folder or a drive is not a project and is too big to walk
   if (level === 'lite' || pluginOn('ponytail@ponytail') || here === path.resolve(HOME) || here === path.parse(here).root) return 0;
   try {
@@ -579,6 +621,7 @@ Run as: ${CMD} [command]
   add <id>             scan one catalog skill and give it to Graut
   level [name]         show or set how hard Graut works: ${LEVELS.join(', ')}
   panel [on|off]       show or hide the Claude Code panel
+  context <words>      relevant code and callers for a task (context off stops it)
   uninstall            remove everything Graut installed
 
 Options
@@ -614,6 +657,7 @@ function main(argv) {
   if (command === 'hook') return hook();
   if (command === 'level') return level(rest[0], values);
   if (command === 'panel') return panel(rest[0]);
+  if (command === 'context') return gather(rest);
   if (command === 'find') return find(rest);
   if (command === 'add' && rest[0]) return add(rest[0], values);
   console.log(HELP);

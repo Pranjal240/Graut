@@ -15,6 +15,7 @@ Graut (the master skill, playbooks, panel, installer and meme lines) is by Pranj
 | [SkillSpector](https://github.com/NVIDIA/SkillSpector) | NVIDIA | Apache-2.0 | `skill-inspector` |
 | [agent-skills](https://github.com/vercel-labs/agent-skills) | Vercel | MIT (stated in its README; the folder carries the license of Vercel's [web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines), whose rules it bundles) | `web-design-guidelines` |
 | [skill-from-masters](https://github.com/GBSOSS/skill-from-masters) | GBSOSS | MIT | `search-skill` |
+| [CodeGraph](https://github.com/colbymchenry/codegraph) | colbymchenry | MIT | none: installed from npm as a separate program, which `/graut` calls for code context |
 | [agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills) | sickn33 and contributors | Code MIT, written content CC BY 4.0 (`UPSTREAM-LICENSE-CONTENT`) | `../library/agentic-awesome-skills` (search index) |
 | [awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) | VoltAgent | MIT | `../library/awesome-agent-skills` |
 | [claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice) | shanraisshan | MIT | `../library/claude-code-best-practice` |

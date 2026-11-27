@@ -29,7 +29,7 @@ npx graut-bhar-de
 npx graut-bhar-de
 ```
 
-**2. Close and reopen your agent, then type your problem.** In Claude Code:
+**2. Close and reopen your agent, then type your problem.** One call is enough: Graut gathers the code context, picks the specialists and checks the result. In Claude Code:
 
 ```text
 /graut:graut make my website look good
@@ -59,6 +59,12 @@ npx graut-bhar-de@latest uninstall
 
 **Bring it any problem.** Say it in a few words, in English or Hinglish. Graut works out what it needs, loads the right expertise, builds it, **checks it before calling it solved**, remembers your project, and tells you plainly when something is still needed from you. It is one skill with 36 specialists inside, and for a job none of them covers, in any field, it searches the skills on your machine and thousands in its catalogs.
 
+**What happens on one call:**
+
+1. **Context first.** CodeGraph returns the code your problem touches, and what depends on it.
+2. **The right specialists, all of them.** Graut loads every specialist the job needs and none it does not. A website gets design and a polish pass; a release audit gets the code, UI and risk reviews. Where your agent supports subagents, independent reviews can run side by side.
+3. **Proof.** It runs a check before saying the problem is solved.
+
 | Your problem | Specialists inside Graut | Try in Claude Code |
 |---|---|---|
 | Bugs, features, planning, hard debugging | Graut playbooks, `gravitas`, `gravitas-python`, `gravitas-typescript` | `/graut:graut tests fail, fix it` |
@@ -76,6 +82,27 @@ npx graut-bhar-de@latest uninstall
 Some jobs need extra tools or your own account: video skills need FFmpeg, image generation needs a `GEMINI_API_KEY`, and HeyGen voices need a HeyGen login. `npx graut-bhar-de doctor` shows what is missing.
 
 The full guide follows: [install](#install), [upgrade](#upgrade-to-a-newer-version), [use](#use), [panel](#the-panel), [commands](#commands).
+
+## Code context: less reading, fewer tokens
+
+Every `/graut` request about code starts by asking [CodeGraph](https://github.com/colbymchenry/codegraph) (MIT, by colbymchenry) for context: one call returns the relevant source, how it connects and what depends on it, so the agent searches and reads less. It works in every agent that can run a command, with or without the Claude Code panel.
+
+- The installer adds CodeGraph (about 280 MB) with `npm install -g @colbymchenry/codegraph`.
+- The first request in a project builds a local index in a `.codegraph` folder, kept out of git. Your code stays on your computer.
+- Graut runs CodeGraph with its usage reporting and update check switched off.
+- Without CodeGraph, or in a folder with no code, Graut searches and reads as usual.
+- Turn it off: `npx graut-bhar-de@latest context off` (back with `context on`). Remove a project's index: `codegraph uninit` in that folder.
+
+In Claude Code, once a project has an index, sessions are also told to ask it before searching, even when you do not call `/graut`. The panel shows how often that happened (`code index 3×`).
+
+**Measured.** The same two questions in Claude Code without Graut and with Graut installed, nobody typing `/graut` (Claude Sonnet, one project of 342 files, two runs each):
+
+| Question | Without Graut | With Graut |
+|---|---|---|
+| "What breaks if I change this function?" | 154k tokens, $0.149 | 108k tokens, $0.068 |
+| "How does this feature work?" | 125k tokens, $0.180 | 162k tokens, $0.106 |
+
+The first used about 30% fewer tokens. The second counted more tokens but cost less, because more of them were cheap cached reads. This is a small test: your numbers will differ with the question and the project. Jobs that load specialists, such as a redesign or an audit, use more tokens than a plain answer, in exchange for a more thorough result.
 
 ## Install
 
@@ -230,7 +257,7 @@ kya karu? my app is slow
 
 Every skill below has its own `/graut:<name>` command. In other agents, or when Graut is installed as a plain skill, write `/graut impeccable audit my landing page`.
 
-Graut stays quiet until it is needed. Questions, renames, small edits and ordinary fixes are done directly. The skill is used when you call it, or when the job needs a specialist, and only then does it speak:
+Graut stays quiet until it is needed. Questions, renames, small edits and ordinary fixes are done directly. The skill is used when you call it, and by itself for reviews and audits, website and UI work, videos, branding and high-risk changes. Only then does it speak:
 
 | While the skill is working | Graut says |
 |---|---|
@@ -262,6 +289,7 @@ last $0.11 · ⌀ $0.14  3 turns      ⌀ 1m 23s / turn  84.0k of 200.0k    afte
 | cost | the session's total, the last turn's cost and the average per turn |
 | tokens, agent time | what the panel has counted, kept when you resume the session |
 | context | how full the model's memory is; from 70% it suggests `/compact` |
+| code index | shown once used: how many times the code index answered instead of a search |
 | reuse, callers | shown once code changes: existing functions reused, and removed ones still called |
 | tests | the last test run; `rerun` after you edit code |
 | skills | the Graut specialists used in this session |
@@ -272,7 +300,7 @@ The panel only watches: it adds nothing to what the model reads, except one note
 |---|---|
 | `off` | Tells the agent to leave Graut alone |
 | `lite` | Asks the agent to spend few tokens; the skill runs only when you call it |
-| `full` | Default: spend few tokens, reuse existing code, call the skill when a specialist is needed. In Claude Code the session also starts with a short map of your code |
+| `full` | Default: spend few tokens, reuse existing code, and call the skill by itself for reviews, audits, UI work, videos, branding and risky changes. In Claude Code the session also starts with a short map of your code |
 | `ultra` | Uses the skill for anything bigger than a quick edit: plan, specialists, verify, review |
 
 Other agents: `npx graut-bhar-de level ultra`.
@@ -286,6 +314,7 @@ Other agents: `npx graut-bhar-de level ultra`.
 | git, uv, Python, FFmpeg (through winget or Homebrew) | design and video skills |
 | `python3` on Windows | skills that call it |
 | Python packages: numpy, scipy, pillow, google-genai | `design`, `day-in-my-life` |
+| CodeGraph, pinned version | code context for every `/graut` request |
 | Node packages | `day-in-my-life`, `session-story`, `p5-paint-animation` |
 | The design engine and the video tool | `impeccable`, HyperFrames skills |
 | A short note in `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` (old file saved as `.graut.bak`) | a quiet note: keep context small, call Graut only when needed. In Claude Code the plugin does this at session start, so `CLAUDE.md` is left alone |
@@ -295,12 +324,24 @@ Two features need your own account: image generation in `design` needs a `GEMINI
 ## Fewer tokens in every agent
 
 - **One skill to list.** Claude Code, Codex, Antigravity and the rest see `graut`, not 37 skills. Specialists are read only when a task needs them. In Claude Code the 36 direct commands add nothing to a session (measured).
+- **Context first.** `/graut` asks CodeGraph for the relevant code before searching and reading, and a Claude Code session in an indexed project is told to do the same.
 - **Lean working rules.** Graut limits command output, reads only what the task needs and keeps replies short, without skipping checks.
 - **Nothing lost.** A loaded specialist is followed in full, exactly as its author wrote it, with Graut's planning, checking and memory around it.
 
 ## Tested
 
-Every change runs the install steps on fresh Windows, macOS and Linux machines: the one-command install, the global install, git clone, the Claude Code plugin, the `skills` CLI, a design audit and a video render. The badge at the top shows the latest result.
+Every change is checked on fresh Windows, macOS and Linux machines. The badge at the top shows the latest result.
+
+| Checked on each system | What it covers |
+|---|---|
+| Install | one command, global install, git clone, the Claude Code plugin from GitHub, the `skills` CLI, upgrade, uninstall |
+| All 36 skills | instructions load and every script parses |
+| Skill tools | design searches, tokens, brand, Tailwind setup, project detection, subtitles, video projects |
+| Skills' own test suites | `ui-ux-pro-max`, `design-system`, `brand`, `ui-styling`, `brag` |
+| Heavier tools | a design audit, music beat analysis, a security scan, two video renders, a code context lookup |
+| The panel and installer | their own tests |
+
+Not covered by these checks: live conversations in each agent, and features that need your own accounts (image generation, HeyGen voices and avatars).
 
 ## Something not working?
 
@@ -331,6 +372,7 @@ Prefix each with `npx graut-bhar-de` (or `npx graut` after the global install).
 | `doctor` | show what is installed and missing |
 | `level [name]` | show or change the level |
 | `panel [on\|off]` | show or hide the Claude Code panel |
+| `context <words>` | relevant code and callers for a task; `context off` stops it |
 | `find <words>` | search local skills and catalogs |
 | `add <id>` | scan one catalog skill and give it to Graut |
 | `uninstall` | remove what Graut installed |
@@ -353,6 +395,7 @@ Prefix each with `npx graut-bhar-de` (or `npx graut` after the global install).
 
 ```bash
 npm test
+npm run test:skills
 claude plugin test .
 ```
 

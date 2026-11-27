@@ -88,7 +88,7 @@ test.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 test('hook tells Claude about Graut quietly until CLAUDE.md does', () => {
   const said = graut('hook').stdout;
-  assert.match(said, /only when the user asks for it or the task needs one of its specialists/);
+  assert.match(said, /Call the `graut` skill before doing the work yourself[^]*never needs it/);
   assert.doesNotMatch(said, /Tention|every task/);
 });
 
@@ -157,6 +157,85 @@ test('the panel can be hidden and shown from the command line', () => {
   assert.match(graut('panel', 'maybe').stderr, /unknown panel setting/);
   graut('panel', 'on');
   assert.strictEqual(read(file).trim(), 'on');
+});
+
+// A stand-in for CodeGraph that notes how it was called.
+test('context indexes a project once, then reuses it, with reporting off and only plain words', () => {
+  const bin = path.join(tmp, 'fakecg');
+  const log = path.join(tmp, 'cg.log');
+  write(
+    path.join(bin, 'codegraph.js'),
+    "const fs = require('fs'); const args = process.argv.slice(2);\n" +
+      'fs.appendFileSync(' + JSON.stringify(log) + ', JSON.stringify({ args, quiet: [process.env.DO_NOT_TRACK, process.env.CODEGRAPH_TELEMETRY] }) + String.fromCharCode(10));\n' +
+      "if (args[0] === 'init') { fs.mkdirSync('.codegraph', { recursive: true }); fs.writeFileSync('.codegraph/codegraph.db', ''); }\n" +
+      "if (args[0] === 'explore') console.log('Exploration: found it');\n"
+  );
+  write(path.join(bin, 'codegraph.cmd'), '@"' + process.execPath + '" "%~dp0codegraph.js" %*\r\n');
+  write(path.join(bin, 'codegraph'), '#!/bin/sh\nexec "' + process.execPath + '" "$(dirname "$0")/codegraph.js" "$@"\n');
+  fs.chmodSync(path.join(bin, 'codegraph'), 0o755);
+
+  const project = path.join(tmp, 'ctxproj');
+  write(path.join(project, 'src', 'pay.js'), 'export function pay() {}');
+  // a project must not be able to supply the program that gets run
+  write(path.join(project, 'codegraph.cmd'), '@echo x> planted.txt\r\n');
+  const key = Object.keys(sandbox).find((k) => k.toUpperCase() === 'PATH');
+  const ask = (cwd, found, ...words) =>
+    spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), 'context', ...words], {
+      cwd,
+      encoding: 'utf8',
+      env: { ...sandbox, [key]: found ? bin + path.delimiter + sandbox[key] : path.join(tmp, 'empty') },
+    }).stdout;
+  const calls = () => read(log).trim().split('\n').map((line) => JSON.parse(line));
+
+  assert.match(ask(project, false, 'pay'), /No code context: CodeGraph is not installed.*npm install -g @colbymchenry\/codegraph@/);
+  assert.match(ask(project, true, 'pay; echo hacked > x.txt & --force'), /Indexing this project once[\s\S]*Exploration: found it/);
+  assert.match(ask(path.join(project, 'src'), true, 'pay'), /^Exploration: found it/);
+  const made = calls().filter((c) => c.args[0] !== '--version');
+  assert.deepStrictEqual(made.map((c) => c.args[0]), ['init', 'explore', 'sync', 'explore']);
+  assert.deepStrictEqual(made[0].args, ['init', '--local-only', '--yes']);
+  assert.deepStrictEqual(made[1].args, ['explore', '--max-files', '3', '--', 'pay', 'echo', 'hacked', 'x.txt']);
+  assert.ok(calls().every((c) => c.quiet.join() === '1,0'));
+  assert.ok(!fs.existsSync(path.join(project, 'planted.txt')) && !fs.existsSync(path.join(project, 'x.txt')));
+
+  // a session in an indexed project is told to ask the index first
+  const hook = (cwd) =>
+    spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), 'hook'], { cwd, encoding: 'utf8', env: sandbox }).stdout;
+  assert.match(hook(path.join(project, 'src')), /This project has a code index[^]*graut\.js" context/);
+  graut('context', 'off');
+  assert.doesNotMatch(hook(project), /code index/);
+  graut('context', 'on');
+  assert.doesNotMatch(hook(path.dirname(project)), /code index/);
+
+  // nothing to gather from
+  const notes = path.join(tmp, 'notes');
+  write(path.join(notes, 'a.txt'), 'hi');
+  assert.match(ask(notes, true, 'pay'), /there is no source code here/);
+  assert.match(ask(home, true, 'pay'), /home folder/);
+  assert.match(ask(project, true), /name the symbols/);
+
+  graut('context', 'off');
+  assert.match(ask(project, true, 'pay'), /switched it off/);
+  graut('context', 'on');
+  assert.match(ask(project, true, 'pay'), /Exploration: found it/);
+});
+
+test('an installed skill names its own folder, so no model has to work it out', () => {
+  const skillFile = path.join(bundle, 'SKILL.md');
+  const before = read(skillFile);
+  const elsewhere = path.join(tmp, 'pinned-home');
+  write(skillFile, before + 'Run node "<GRAUT>/scripts/graut.js".\n\x60<GRAUT>\x60 is the folder of this one. Use its full path.\n');
+  const r = spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), 'install', ...flags], {
+    cwd: tmp,
+    encoding: 'utf8',
+    env: { ...sandbox, GRAUT_HOME: elsewhere },
+  });
+  write(skillFile, before);
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  const folder = path.join(elsewhere, '.agents', 'skills', 'graut').split(path.sep).join('/');
+  const installed = read(folder, 'SKILL.md');
+  assert.ok(installed.includes('node "' + folder + '/scripts/graut.js"'), installed);
+  assert.ok(installed.includes('The Graut folder is \x60' + folder + '\x60.'), installed);
+  assert.doesNotMatch(installed, /<GRAUT>/);
 });
 
 test('find searches packs, other local skills and the catalog', () => {

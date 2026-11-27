@@ -16,6 +16,8 @@ export type Stats = {
   tests: Tests
   /** Specialists read this session, in the order first used. */
   packs: string[]
+  /** Times the code index answered, so the agent did not have to search for it. */
+  lookups: number
   /** Functions reused and created by edits, removed ones still called, and where. */
   reused: string[]
   created: string[]

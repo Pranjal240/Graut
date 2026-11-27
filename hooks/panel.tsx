@@ -19,6 +19,7 @@ const EMPTY: Stats = {
   context: null,
   tests: { state: 'none', passed: null, failed: null },
   packs: [],
+  lookups: 0,
   reused: [],
   created: [],
   removed: [],
@@ -71,15 +72,15 @@ const measure = async ($: EngineInterface) => {
 }
 
 // What only the panel counts is kept per session, so a resumed session goes on from where it was.
-type Kept = Pick<Stats, 'agentMs' | 'turnMs' | 'tokens' | 'turnCosts' | 'tests' | 'packs' | 'reused' | 'created'>
+type Kept = Pick<Stats, 'agentMs' | 'turnMs' | 'tokens' | 'turnCosts' | 'tests' | 'packs' | 'lookups' | 'reused' | 'created'>
 const sessions = async ($: EngineInterface) =>
   ((await $.store.get('sessions').catch(() => undefined)) ?? []) as [string, Kept][]
 
 const keep = async ($: EngineInterface, s: Stats) => {
   const id = await $.session.id()
-  const { agentMs, turnMs, tokens, turnCosts, tests, packs, reused, created } = s
+  const { agentMs, turnMs, tokens, turnCosts, tests, packs, lookups, reused, created } = s
   const others = (await sessions($)).filter(([key]) => key !== id)
-  const mine: Kept = { agentMs, turnMs, tokens, turnCosts, tests, packs, reused, created }
+  const mine: Kept = { agentMs, turnMs, tokens, turnCosts, tests, packs, lookups, reused, created }
   await $.store.set('sessions', [...others, [id, mine]].slice(-20))
 }
 
@@ -121,6 +122,8 @@ const stillCalled = async ($: EngineInterface, removed: readonly string[]) => {
 }
 
 export const register: Register = on => {
+  // Every hook that passes an event on has a fallback: a fault here never blocks the session. It is safe
+  // to call next again, which replays what the first call returned.
   // The level the model last heard about; the session-start hook tells it the saved one.
   let announced: Level | undefined
   // Definitions that existed when the session started: what new code can reuse.
@@ -139,7 +142,7 @@ export const register: Register = on => {
       .catch(() => undefined)
     known = await begin($, await load($)).catch(() => known)
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
   // /clear, /resume and /branch go on under another session id with no session.start.
   on('command.run', { command: ['clear', 'resume', 'branch'] }, async ($, e, next) => {
@@ -147,7 +150,7 @@ export const register: Register = on => {
     const result = await next(e)
     if ((await $.session.id()) !== before) known = await begin($, {}).catch(() => known)
     return result
-  })
+  }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'graut-panel' }, async ($, e) => {
     const word = e.args.trim().toLowerCase()
@@ -167,7 +170,7 @@ export const register: Register = on => {
     if (!note) return next(e)
     announced = current
     return next({ ...e, context: [...(e.context ?? []), note] })
-  })
+  }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {
     const call = e as { tool: string; command?: string; file_path?: string; old_string?: string; new_string?: string; content?: string }
@@ -185,6 +188,13 @@ export const register: Register = on => {
     const pack = call.tool === 'Read' ? /[\\/]packs[\\/]([a-z0-9-]+)[\\/]/.exec(file)?.[1] : undefined
     if (pack) {
       await update($, stats, s => ({ ...EMPTY, ...s, packs: union(s.packs ?? [], [pack]) }))
+    }
+    // Graut's context command or CodeGraph's own tool, when it found something.
+    const asked =
+      /codegraph_explore$/.test(call.tool) ||
+      ((call.tool === 'Bash' || call.tool === 'PowerShell') && /graut\.js["']? +context +(?!o(n|ff)\b)/.test(call.command ?? ''))
+    if (asked && ran.isError !== true && !/^No code context/m.test(ran.text ?? '')) {
+      await update($, stats, s => ({ ...EMPTY, ...s, lookups: (s.lookups ?? 0) + 1 }))
     }
     if (watched && ran.isError !== true) {
       const after = (call.tool === 'Write' ? call.content : call.new_string) ?? ''
@@ -206,7 +216,7 @@ export const register: Register = on => {
       await update($, stats, s => ({ ...EMPTY, ...s, tests: readTests(output, ran.isError === true) }))
     }
     return ran
-  })
+  }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     const usage = e.usage
@@ -243,7 +253,7 @@ export const register: Register = on => {
     })
     await keep($, await load($)).catch(() => undefined)
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey || (await read($, hidden))) return next(e)
@@ -331,6 +341,7 @@ export const register: Register = on => {
           <Text>{money(s.costUsd)}</Text>
           {last === undefined ? null : <Text dimColor>last {money(last)}</Text>}
           {s.context ? <Text color={isFull ? 'warning' : undefined}>context {s.context.percent}%</Text> : null}
+          {s.lookups ? <Text color="success">code index {s.lookups}×</Text> : null}
           {reuse === undefined ? null : <Text>{reuse}% reuse</Text>}
           {s.openCallers.length ? <Text color="warning">⚠ {s.openCallers.length} callers open</Text> : null}
           {s.tests.state === 'none' ? null : <Text color={testsColor}>tests {testsText(s.tests)}</Text>}
@@ -360,6 +371,7 @@ export const register: Register = on => {
         ...(isFull ? { tone: 'warning' as const } : {}),
       })
     }
+    if (s.lookups) cols.push({ key: 'index', label: 'code index', value: `${s.lookups}×`, sub: 'asked, not searched', tone: 'success' })
     if (reuse !== undefined) cols.push({ key: 'reuse', label: 'reuse', value: `${reuse}%`, sub: `${s.reused.length} reused` })
     if (s.openCallers.length) {
       cols.push({ key: 'callers', label: 'callers', value: `${s.openCallers.length} open`, sub: s.openCallers.slice(0, 2).join(', '), tone: 'warning' })
@@ -424,5 +436,5 @@ export const register: Register = on => {
         {metrics}
       </Box>,
     )
-  })
+  }).catch(($, e, next) => next(e))
 }

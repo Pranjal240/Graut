@@ -211,3 +211,19 @@ test('Hide and /graut-panel hide the panel and bring it back', async ($, on) => 
   expect((await say('sideways')).text).toMatch(/on or/)
   await ui.unmount()
 })
+
+test('answers from the code index are counted, and empty ones are not', async ($, on) => {
+  mock.store(on)
+  let text = 'Exploration: found it'
+  on('tool.call', () => ({ result: {}, text }) as never)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const run = (command: string) => $.tool.call({ tool: 'Bash', command })
+  await run('node "/home/u/.graut/plugin/skills/graut/scripts/graut.js" context "pay refund"')
+  await run('node graut.js context off')
+  text = 'No code context: there is no source code here.'
+  await run('node graut.js context "pay"')
+  text = 'Exploration: more'
+  await $.tool.call({ tool: 'mcp__codegraph__codegraph_explore', query: 'pay' } as never)
+  expect(await ui.find({ type: 'Text', text: /^code index 2×$/ })).toBeDefined()
+  await ui.unmount()
+})
