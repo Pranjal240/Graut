@@ -96,7 +96,13 @@ jobs:
       - name: System tools (Windows)
         if: runner.os == 'Windows'
         run: |
-          choco install ffmpeg -y --no-progress
+          # the package feed times out now and then, and choco still reports success
+          for attempt in 1 2 3 4 5; do
+            choco install ffmpeg -y --no-progress || true
+            ffmpeg -version > /dev/null 2>&1 && break
+            sleep 45
+          done
+          ffmpeg -version | head -n 1
           python -m pip install --quiet uv
       - name: Installer tests
         run: npm test

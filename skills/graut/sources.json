@@ -71,6 +71,7 @@
     },
     {
       "id": "brag",
+      "add": { "brag/scripts/.python-version": "3.13\n" },
       "repo": "latent-spaces/brag",
       "sha": "06379432a9243c951dfcc051153be18d2d261044",
       "skills": {

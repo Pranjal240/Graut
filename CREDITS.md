@@ -36,6 +36,7 @@ Graut (the master skill, playbooks, panel, installer and meme lines) is by Pranj
 - `ui-ux-pro-max/PACK.md`: script paths rewritten to `<skill-dir>` so they work from any install location, with a note saying so.
 - `gravitas/scripts/doctor.py`: looks for `PACK.md`.
 - Three links to files outside a skill (in `gravitas` and `huashu-nuwa`) point to the author's repository instead.
+- `brag/scripts/.python-version` is added to run its audio tool on Python 3.13, because one of its libraries does not support 3.15.
 - `huashu-nuwa`: only its skill file, `references/` and `scripts/` are copied; the example personas are not.
 - Library folders keep only Markdown and JSON files.
 - Coverage data, Python caches and `.gitignore` files are left out. License files are added under the `UPSTREAM-` prefix.

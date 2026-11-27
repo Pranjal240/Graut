@@ -77,6 +77,8 @@ for (const source of loadManifest().sources) {
     for (const [name] of skills) fs.copyFileSync(license, path.join(PACKS, name, 'UPSTREAM-LICENSE'));
   }
   for (const [file, replacements] of Object.entries(source.patch || {})) patch(path.join(PACKS, file), replacements);
+  // files Graut adds beside a skill's own
+  for (const [file, text] of Object.entries(source.add || {})) fs.writeFileSync(path.join(PACKS, file), text);
 
   // Search lists and reference docs: text only, so pictures do not bloat the repo.
   if (library.length) {
