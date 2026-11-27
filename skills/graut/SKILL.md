@@ -1,6 +1,6 @@
 ---
 name: graut
-description: Graut, one skill with 36 bundled specialists. Use when the user calls it (/graut, "graut", "kya karu"), or when a task needs a specialist: building or redesigning a website or UI, UI or accessibility review, branding, slides, launch or explainer videos, high-risk changes (auth, payments, data migration), hard debugging, over-engineering review or audit, or finding, making or safety-checking a skill. Never for a question, a rename, a small edit or an ordinary bug fix: do those directly, without this skill.
+description: Graut, one skill with 36 bundled specialists. Use when the user calls it (/graut, "graut" or "kya karu"), or when a task needs a specialist, such as building or redesigning a website or UI, UI or accessibility review, branding, slides, launch or explainer videos, high-risk changes (auth, payments, data migration), hard debugging, over-engineering review or audit, or finding, making or safety-checking a skill. Never for a question, a rename, a small edit or an ordinary bug fix; do those directly, without this skill.
 argument-hint: "[task]  or  [specialist name] [task]"
 license: MIT
 ---

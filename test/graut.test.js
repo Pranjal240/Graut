@@ -284,6 +284,17 @@ test('links inside the packs lead to files that exist', () => {
   assert.deepStrictEqual(broken, []);
 });
 
+test('the skill header reads the same to every agent', () => {
+  const head = read(GRAUT, 'SKILL.md').split(/^---\s*$/m)[1];
+  for (const line of head.split(/\r?\n/).filter(Boolean)) {
+    const value = line.slice(line.indexOf(':') + 1).trim();
+    // unquoted, ": " starts a nested mapping and " #" a comment, so strict readers skip the skill
+    if (!/^["']/.test(value)) assert.doesNotMatch(value, /: | #/, line.slice(0, 40));
+  }
+  // Codex and others refuse a longer description
+  assert.ok(/^description: (.*)$/m.exec(head)[1].length <= 1024);
+});
+
 test('release versions agree and the plugin hook points at the script', () => {
   const version = json(path.join(ROOT, 'package.json')).version;
   assert.strictEqual(json(path.join(ROOT, '.claude-plugin', 'plugin.json')).version, version);
