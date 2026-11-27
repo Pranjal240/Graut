@@ -56,6 +56,8 @@ const BLOCK_RE = /<!-- graut:start -->[\s\S]*?<!-- graut:end -->(\r?\n)?/;
 // How hard Graut works. The panel in Claude Code and the `level` command both write this file.
 const LEVELS = ['off', 'lite', 'full', 'ultra'];
 const LEVEL_FILE = at('.graut', 'level');
+// "off" hides the Claude Code panel; the panel's Hide button and /graut-panel write the same file.
+const PANEL_FILE = at('.graut', 'panel');
 const savedLevel = () => {
   const text = fs.existsSync(LEVEL_FILE) ? fs.readFileSync(LEVEL_FILE, 'utf8').trim() : '';
   return LEVELS.includes(text) ? text : 'full';
@@ -256,6 +258,19 @@ function level(name, opts) {
   return 0;
 }
 
+// `graut panel off` hides the panel above the prompt; the skills keep working.
+function panel(name) {
+  if (!name) {
+    console.log(`Graut panel: ${read(PANEL_FILE).trim() === 'off' ? 'off' : 'on'} (choose on or off)`);
+    return 0;
+  }
+  if (name !== 'on' && name !== 'off') throw new Error(`unknown panel setting "${name}". Choose on or off`);
+  fs.mkdirSync(path.dirname(PANEL_FILE), { recursive: true });
+  fs.writeFileSync(PANEL_FILE, `${name}\n`);
+  console.log(`Graut panel: ${name}. An open Claude Code session changes at your next message.\n\n${SAY.done}`);
+  return 0;
+}
+
 function findScanner() {
   if (works('skillspector', ['--help'])) return 'skillspector';
   const r = run('uv', ['tool', 'dir', '--bin']);
@@ -424,7 +439,11 @@ function doctor(opts) {
 function hook() {
   const level = savedLevel();
   const text = block(level);
-  if (!text) return 0;
+  // The skill is still listed at "off", so the model has to be told to leave it alone.
+  if (!text) {
+    console.log('Graut is switched off: do not use the graut skill unless the user asks for it.');
+    return 0;
+  }
   if (!read(AGENTS.claude.memory).includes(text)) console.log(text);
   const here = path.resolve(process.cwd());
   // ponytail prints the same map; a home folder or a drive is not a project and is too big to walk
@@ -559,6 +578,7 @@ Run as: ${CMD} [command]
   find <words>         search skills on this machine and in the catalogs
   add <id>             scan one catalog skill and give it to Graut
   level [name]         show or set how hard Graut works: ${LEVELS.join(', ')}
+  panel [on|off]       show or hide the Claude Code panel
   uninstall            remove everything Graut installed
 
 Options
@@ -593,6 +613,7 @@ function main(argv) {
   if (command === 'doctor') return doctor(values);
   if (command === 'hook') return hook();
   if (command === 'level') return level(rest[0], values);
+  if (command === 'panel') return panel(rest[0]);
   if (command === 'find') return find(rest);
   if (command === 'add' && rest[0]) return add(rest[0], values);
   console.log(HELP);

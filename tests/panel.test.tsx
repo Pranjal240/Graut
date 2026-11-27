@@ -19,7 +19,7 @@ test('the panel starts as one line headed only Graut', async $ => {
     const ui = await $.ui.mount({ ...BAND, surface })
     expect((await ui.find({ type: 'Text', text: /graut/i }))?.text).toBe('Graut')
     expect(await ui.find({ type: 'Text', text: /pranjal|bhar/i })).toBeUndefined()
-    for (const key of ['level', 'review', 'audit', 'doctor', 'details']) expect(await ui.find({ key })).toBeDefined()
+    for (const key of ['level', 'review', 'audit', 'doctor', 'details', 'hide']) expect(await ui.find({ key })).toBeDefined()
     expect(await ui.find({ key: 'level-ultra' })).toBeUndefined()
     await ui.unmount()
   }
@@ -156,5 +156,58 @@ test('a removed function that is still called is reported', async ($, on) => {
   await $.turn.complete({ reason: 'answer', answer: 'done', durationMs: 1000 } as never)
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /1 callers open/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('two kinds of test run in one command are added up', async ($, on) => {
+  mock.store(on)
+  on('tool.call', () => ({ result: {}, text: 'ℹ pass 16\nℹ fail 0\n 6 pass\n 0 fail' }) as never)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await $.tool.call({ tool: 'Bash', command: 'npm test && claude plugin test .' })
+  expect(await ui.find({ type: 'Text', text: /22 passed/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test("the average time is that of the turns the panel timed, not all its time over one turn", async ($, on) => {
+  mock.store(on)
+  on('turn.complete', () => ({ text: '' }))
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await ui.press({ key: 'details' })
+  for (const durationMs of [10000, 30000]) await $.turn.complete({ reason: 'answer', answer: 'done', durationMs } as never)
+  expect(await ui.find({ type: 'Text', text: /^40s$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^⌀ 20s \/ turn$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('Hide and /graut-panel hide the panel and bring it back', async ($, on) => {
+  const saved: string[] = []
+  const commands: string[] = []
+  mock.env(on, { HOME: '/home/u' })
+  mock.store(on)
+  on('fs.write', (_, e) => {
+    saved.push(e.text)
+    return { value: undefined }
+  })
+  on('fs.read', (_, e) => ({ value: e.path.endsWith('panel') ? (saved[saved.length - 1] ?? '') : '' }))
+  on('command.register', (_, e) => {
+    commands.push(e.name)
+    return { value: { command: e.name } }
+  })
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  const say = (args: string) =>
+    $.command.run({ command: 'graut-panel', args, origin: { kind: 'composer' }, presentation: {} } as never)
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  expect(commands).toEqual(['graut-panel'])
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  await ui.press({ key: 'hide' })
+  expect(saved).toEqual(['off\n'])
+  expect(await ui.find({ key: 'review' })).toBeUndefined()
+
+  expect((await say('on')).text).toBe('Graut panel shown.')
+  expect(await ui.find({ key: 'review' })).toBeDefined()
+  expect((await say('')).text).toMatch(/hidden/)
+  expect(await ui.find({ key: 'review' })).toBeUndefined()
+  expect((await say('sideways')).text).toMatch(/on or/)
   await ui.unmount()
 })

@@ -143,8 +143,20 @@ test('with the plugin on, the note leaves CLAUDE.md and the hook maps the projec
   assert.doesNotMatch(hook(), /Codebase map/);
   fs.rmSync(settings);
   graut('level', 'off', '--agents', 'claude');
-  assert.strictEqual(hook(), '');
+  assert.match(hook(), /switched off: do not use the graut skill/);
+  assert.doesNotMatch(hook(), /Codebase map/);
   graut('level', 'full', '--agents', 'claude');
+});
+
+test('the panel can be hidden and shown from the command line', () => {
+  const file = path.join(home, '.graut', 'panel');
+  assert.match(graut('panel').stdout, /Graut panel: on/);
+  assert.strictEqual(graut('panel', 'off').status, 0);
+  assert.strictEqual(read(file).trim(), 'off');
+  assert.match(graut('panel').stdout, /Graut panel: off/);
+  assert.match(graut('panel', 'maybe').stderr, /unknown panel setting/);
+  graut('panel', 'on');
+  assert.strictEqual(read(file).trim(), 'on');
 });
 
 test('find searches packs, other local skills and the catalog', () => {

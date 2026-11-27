@@ -22,7 +22,9 @@ export const TEST_COMMAND =
 /** Reads a test run's summary. Any reported failure counts; a command that errors after a clear zero passed. */
 export const readTests = (output: string, failedExit: boolean): Tests => {
   const all = (pattern: RegExp) => [...output.matchAll(pattern)].map(m => Number(m[1] ?? m[2]))
-  const passed = all(/(\d+) (?:passed|passing|pass)\b|(?:^|\n)[#ℹ] pass (\d+)/g).pop() ?? null
+  // Runners word their totals differently, so a command that ran two kinds has two totals to add.
+  const totals = [/(?:^|\n)[#ℹ] pass (\d+)/g, /(\d+) pass\b/g, /(\d+) (?:passed|passing)\b/g].flatMap(kind => all(kind).slice(-1))
+  const passed = totals.length ? totals.reduce((sum, n) => sum + n, 0) : null
   const failures = all(/(\d+) (?:failed|failing|failures?|fail)\b|(?:^|\n)[#ℹ] fail (\d+)/g)
   const failed = failures.length ? Math.max(...failures) : null
   // The exit code also covers whatever ran after the tests in the same command.

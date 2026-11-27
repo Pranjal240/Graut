@@ -7,9 +7,9 @@ export type Stats = {
   turns: number
   costUsd: number | null
   turnCosts: number[]
-  /** Time and tokens of the turns the panel saw; `timed` is how many turns that was. */
+  /** Time and tokens of the turns the panel saw, with the last turns' own durations. */
   agentMs: number
-  timed: number
+  turnMs: number[]
   tokens: number
   /** How full the context window is. */
   context: { percent: number; tokens: number; window: number } | null
@@ -25,6 +25,6 @@ export type Stats = {
 
 declare module 'claude-code' {
   interface PluginState {
-    graut: { level: Level; stats: Stats; details: boolean }
+    graut: { level: Level; stats: Stats; details: boolean; hidden: boolean }
   }
 }

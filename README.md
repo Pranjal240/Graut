@@ -21,9 +21,61 @@ npx graut-bhar-de
 
 ---
 
-## What is Graut?
+## Quick start
 
-One skill for Claude Code, Codex, Antigravity and other coding agents, with 36 specialists inside. Say your problem in a few words. Graut works out what it needs, loads the right expertise, builds it, **checks it before calling it solved**, and remembers your project.
+**1. Install.** Type this in a terminal (PowerShell on Windows, Terminal on macOS and Linux), not in the chat. It needs [Node.js](https://nodejs.org) and git.
+
+```bash
+npx graut-bhar-de
+```
+
+**2. Close and reopen your agent, then type your problem.** In Claude Code:
+
+```text
+/graut:graut make my website look good
+```
+
+In Codex, Antigravity, Gemini CLI, Cursor and others:
+
+```text
+/graut make my website look good
+```
+
+**3. Panel in your way? Turn it off.** Claude Code shows a small Graut bar above the chat box.
+
+| You want | Do this | To bring it back |
+|---|---|---|
+| Hide the bar, keep the skills | click **Hide** on the bar, or type `/graut-panel off` in Claude Code | `/graut-panel on` |
+| The same, from a terminal | `npx graut-bhar-de@latest panel off` | `npx graut-bhar-de@latest panel on` |
+| Turn the whole plugin off | `claude plugin disable graut@graut`, then restart Claude Code | `claude plugin enable graut@graut` |
+
+**4. Uninstall** (removes the plugin, the panel and the skill from every agent; your own files stay):
+
+```bash
+npx graut-bhar-de@latest uninstall
+```
+
+## What Graut can do
+
+**Bring it any problem.** Say it in a few words, in English or Hinglish. Graut works out what it needs, loads the right expertise, builds it, **checks it before calling it solved**, remembers your project, and tells you plainly when something is still needed from you. It is one skill with 36 specialists inside, and for a job none of them covers, in any field, it searches the skills on your machine and thousands in its catalogs.
+
+| Your problem | Specialists inside Graut | Try in Claude Code |
+|---|---|---|
+| Bugs, features, planning, hard debugging | Graut playbooks, `gravitas`, `gravitas-python`, `gravitas-typescript` | `/graut:graut tests fail, fix it` |
+| Risky changes: login, payments, data | `gravitas-highstakes` | `/graut:gravitas-highstakes migrate my users table` |
+| Websites and app design | `ui-ux-pro-max`, `impeccable`, `ui-styling`, `web-design-guidelines` | `/graut:impeccable audit my landing page` |
+| Brand, logos, banners, slides | `design`, `brand`, `design-system`, `banner-design`, `slides` | `/graut:slides pitch deck for a chai shop` |
+| AI apps and machine learning | Graut playbooks for AI and ML | `/graut:graut my model is 99% accurate but fails live` |
+| Code review and too much code | `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` | `/graut:ponytail-review` |
+| Launch videos and explainers | `brag`, `brag-slim`, `vox-explainer`, `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use` | `/graut:brag-slim` |
+| Fun and social videos | `camera-3d-captions`, `day-in-my-life`, `duo`, `p5-paint-animation`, `prod-by-claude`, `session-story`, `x-posting-license` | `/graut:duo compare two screens` |
+| Turning a person's thinking into a skill | `huashu-nuwa` | `/graut:huashu-nuwa think like a great teacher` |
+| Finding and safety-checking skills | `search-skill`, `skill-inspector` (with NVIDIA SkillSpector) | `/graut:skill-inspector check this skill` |
+| Anything else | `find` searches, `add` brings a skill in | `npx graut-bhar-de find "kubernetes deploy"` |
+
+Some jobs need extra tools or your own account: video skills need FFmpeg, image generation needs a `GEMINI_API_KEY`, and HeyGen voices need a HeyGen login. `npx graut-bhar-de doctor` shows what is missing.
+
+The full guide follows: [install](#install), [upgrade](#upgrade-to-a-newer-version), [use](#use), [panel](#the-panel), [commands](#commands).
 
 ## Install
 
@@ -192,13 +244,13 @@ Graut stays quiet until it is needed. Questions, renames, small edits and ordina
 In Claude Code, Graut sits above the prompt as one line:
 
 ```text
-Graut  ● full  $0.42  last $0.11  context 42%  tests 11 passed      Review  Audit  Doctor  Details
+Graut  ● full  $0.42  last $0.11  context 42%  tests 11 passed      Review  Audit  Doctor  Details  Hide
 ```
 
-**Details** opens the full view (Graut remembers your choice):
+**Hide** removes the bar (`/graut-panel on` brings it back). **Details** opens the full view (Graut remembers your choice):
 
 ```text
-Graut  off  lite  [full]  ultra                      Copy  Review  Audit  Doctor  Compact
+Graut  off  lite  [full]  ultra              Copy  Review  Audit  Doctor  Compact  Hide
 ──────────────────────────────────────────────────────────────────────────────────────────
 cost                  tokens       agent time       context            tests
 $0.42                 1.2M         4m 10s           42%                11 passed
@@ -218,7 +270,7 @@ The panel only watches: it adds nothing to what the model reads, except one note
 
 | Level | What Graut does |
 |---|---|
-| `off` | Stays out of the way |
+| `off` | Tells the agent to leave Graut alone |
 | `lite` | Asks the agent to spend few tokens; the skill runs only when you call it |
 | `full` | Default: spend few tokens, reuse existing code, call the skill when a specialist is needed. In Claude Code the session also starts with a short map of your code |
 | `ultra` | Uses the skill for anything bigger than a quick edit: plan, specialists, verify, review |
@@ -260,21 +312,6 @@ Every change runs the install steps on fresh Windows, macOS and Linux machines: 
 | `ffmpeg` not found after installing it | Open a new terminal |
 | Video render fails on first use | Run `npx --yes hyperframes@latest doctor` |
 
-## What is inside
-
-| For | Inside Graut |
-|---|---|
-| Web, AI apps, machine learning, debugging | Graut playbooks |
-| Routing, chaining, subagents, memory, new skills and agents | `graut` |
-| Writing less code | `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` |
-| Correct engineering | `gravitas`, `gravitas-highstakes`, `gravitas-python`, `gravitas-typescript` |
-| Design | `ui-ux-pro-max`, `impeccable`, `design`, `brand`, `design-system`, `ui-styling`, `banner-design`, `slides`, `web-design-guidelines` |
-| Video | `brag`, `brag-slim`, `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `camera-3d-captions`, `day-in-my-life`, `duo`, `p5-paint-animation`, `prod-by-claude`, `session-story`, `vox-explainer`, `x-posting-license` |
-| Turning a person's thinking into a skill | `huashu-nuwa` |
-| Finding more skills | `search-skill` |
-| Skill safety | `skill-inspector`, with NVIDIA SkillSpector |
-| Everything else | `find` searches skills on your machine and thousands in the bundled catalogs; `add` gives one to Graut |
-
 ## From four words to a website
 
 A one-line page and the prompt "make this website good" gave this (the menu items are samples, and the page says so):
@@ -293,6 +330,7 @@ Prefix each with `npx graut-bhar-de` (or `npx graut` after the global install).
 | `upgrade` | get the newest version and install it |
 | `doctor` | show what is installed and missing |
 | `level [name]` | show or change the level |
+| `panel [on\|off]` | show or hide the Claude Code panel |
 | `find <words>` | search local skills and catalogs |
 | `add <id>` | scan one catalog skill and give it to Graut |
 | `uninstall` | remove what Graut installed |

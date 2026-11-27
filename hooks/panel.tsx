@@ -14,7 +14,7 @@ const EMPTY: Stats = {
   costUsd: null,
   turnCosts: [],
   agentMs: 0,
-  timed: 0,
+  turnMs: [],
   tokens: 0,
   context: null,
   tests: { state: 'none', passed: null, failed: null },
@@ -27,18 +27,29 @@ const EMPTY: Stats = {
 const level = atom({ plugin: 'graut', key: 'level' } as const, 'full')
 const stats = atom({ plugin: 'graut', key: 'stats' } as const, EMPTY)
 const details = atom({ plugin: 'graut', key: 'details' } as const, false)
+const hidden = atom({ plugin: 'graut', key: 'hidden' } as const, false)
 
 // State kept by an older version of the panel lacks newer fields.
 const load = async ($: EngineInterface): Promise<Stats> => ({ ...EMPTY, ...(await read($, stats)) })
 const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])]
 
-const levelFile = async ($: EngineInterface) =>
-  `${(await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE'))}/.graut/level`
+// The settings the panel shares with the `graut` command line.
+const settingFile = async ($: EngineInterface, name: 'level' | 'panel') =>
+  `${(await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE'))}/.graut/${name}`
 
 const savedLevel = async ($: EngineInterface): Promise<Level> => {
-  const text = await $.fs.read(await levelFile($)).catch(() => '')
+  const text = await $.fs.read(await settingFile($, 'level')).catch(() => '')
   return LEVELS.find(l => l === text.trim()) ?? 'full'
 }
+
+const savedHidden = async ($: EngineInterface) =>
+  (await $.fs.read(await settingFile($, 'panel')).catch(() => '')).trim() === 'off'
+
+const setHidden = async ($: EngineInterface, next: boolean) => {
+  await $.fs.write(await settingFile($, 'panel'), next ? 'off\n' : 'on\n')
+  await update($, hidden, () => next)
+}
+const HIDDEN_NOTE = 'Graut panel hidden. Type /graut-panel to bring it back.'
 
 /** What the model is told when the level changes in the middle of a session. */
 const rules = async ($: EngineInterface, next: Level) => {
@@ -60,15 +71,15 @@ const measure = async ($: EngineInterface) => {
 }
 
 // What only the panel counts is kept per session, so a resumed session goes on from where it was.
-type Kept = Pick<Stats, 'agentMs' | 'timed' | 'tokens' | 'turnCosts' | 'tests' | 'packs' | 'reused' | 'created'>
+type Kept = Pick<Stats, 'agentMs' | 'turnMs' | 'tokens' | 'turnCosts' | 'tests' | 'packs' | 'reused' | 'created'>
 const sessions = async ($: EngineInterface) =>
   ((await $.store.get('sessions').catch(() => undefined)) ?? []) as [string, Kept][]
 
 const keep = async ($: EngineInterface, s: Stats) => {
   const id = await $.session.id()
-  const { agentMs, timed, tokens, turnCosts, tests, packs, reused, created } = s
+  const { agentMs, turnMs, tokens, turnCosts, tests, packs, reused, created } = s
   const others = (await sessions($)).filter(([key]) => key !== id)
-  const mine: Kept = { agentMs, timed, tokens, turnCosts, tests, packs, reused, created }
+  const mine: Kept = { agentMs, turnMs, tokens, turnCosts, tests, packs, reused, created }
   await $.store.set('sessions', [...others, [id, mine]].slice(-20))
 }
 
@@ -121,6 +132,11 @@ export const register: Register = on => {
     await update($, level, () => saved)
     const open = (await $.store.get('details').catch(() => undefined)) === true
     await update($, details, () => open)
+    const off = await savedHidden($)
+    await update($, hidden, () => off)
+    await $.command
+      .register({ name: 'graut-panel', description: 'Show or hide the Graut panel', argumentHint: '[on|off]', immediate: true })
+      .catch(() => undefined)
     known = await begin($, await load($)).catch(() => known)
     return next(e)
   })
@@ -133,7 +149,18 @@ export const register: Register = on => {
     return result
   })
 
+  on('command.run', { command: 'graut-panel' }, async ($, e) => {
+    const word = e.args.trim().toLowerCase()
+    if (word && word !== 'on' && word !== 'off') return { text: 'Use /graut-panel on or /graut-panel off.' }
+    const next = word ? word === 'off' : !(await read($, hidden))
+    await setHidden($, next)
+    return { text: next ? HIDDEN_NOTE : 'Graut panel shown.' }
+  })
+
   on('prompt.submit', async ($, e, next) => {
+    // `graut panel off` from a terminal reaches an open session at its next message.
+    const off = await savedHidden($)
+    await update($, hidden, () => off)
     const current = await read($, level)
     if (current === (announced ?? current)) return next(e)
     const note = await rules($, current)
@@ -207,7 +234,7 @@ export const register: Register = on => {
         costUsd: m.cost ?? s.costUsd,
         turnCosts: spent === null ? s.turnCosts : [...s.turnCosts, spent].slice(-20),
         agentMs: s.agentMs + e.durationMs,
-        timed: s.timed + 1,
+        turnMs: [...s.turnMs, e.durationMs].slice(-20),
         tokens: s.tokens + tokens,
         context: m.context ?? s.context,
         removed: open.names,
@@ -219,7 +246,7 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (e.props.hasSurvey) return next(e)
+    if (e.props.hasSurvey || (await read($, hidden))) return next(e)
     // Other panels share this place: theirs is drawn under Graut's, not replaced by it.
     // next(e) rejects only when nothing answers beneath, as in the test harness.
     const below = await next(e).catch(() => undefined)
@@ -232,7 +259,7 @@ export const register: Register = on => {
     const failed = (what: string) => () => $.ui.toast(`Graut: ${what} did not work`)
 
     const choose = async (chosen: Level) => {
-      await $.fs.write(await levelFile($), `${chosen}\n`)
+      await $.fs.write(await settingFile($, 'level'), `${chosen}\n`)
       await update($, level, () => chosen)
     }
     const toggle = async () => {
@@ -264,6 +291,7 @@ export const register: Register = on => {
     }
 
     const last = s.turnCosts[s.turnCosts.length - 1]
+    const typical = s.turnMs.length ? s.turnMs.reduce((sum, ms) => sum + ms, 0) / s.turnMs.length : null
     const average = s.costUsd !== null && s.turns > 0 ? s.costUsd / s.turns : null
     const reuse = percent(s.reused.length, s.created.length)
     const isFull = (s.context?.percent ?? 0) >= 70
@@ -279,6 +307,7 @@ export const register: Register = on => {
       <Button key="audit" plain label="Audit" onPress={() => ask('audit this project for bugs, security, accessibility and bloat; report only')} />,
       <Button key="doctor" plain label="Doctor" onPress={() => doctor().catch(failed('doctor (is Node.js installed?)'))} />,
       <Button key="details" plain label={isOpen ? 'Compact' : 'Details'} onPress={toggle} />,
+      <Button key="hide" plain label="Hide" onPress={() => setHidden($, true).then(() => $.ui.toast(HIDDEN_NOTE)).catch(failed('hiding the panel'))} />,
     ]
     const stack = (mine: NonNullable<typeof below>) =>
       below ? (
@@ -320,7 +349,7 @@ export const register: Register = on => {
         sub: [last === undefined ? '' : `last ${money(last)}`, average === null ? '' : `⌀ ${money(average)}`].filter(Boolean).join(' · '),
       },
       { key: 'tokens', label: 'tokens', value: count(s.tokens), sub: `${s.turns} ${s.turns === 1 ? 'turn' : 'turns'}` },
-      { key: 'time', label: 'agent time', value: clock(s.agentMs), sub: s.timed ? `⌀ ${clock(s.agentMs / s.timed)} / turn` : '' },
+      { key: 'time', label: 'agent time', value: clock(s.agentMs), sub: typical === null ? '' : `⌀ ${clock(typical)} / turn` },
     ]
     if (s.context) {
       cols.push({
