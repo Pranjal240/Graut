@@ -1,6 +1,6 @@
 ---
 name: graut
-description: The one skill for any software problem. It plans the work, loads the right playbook or specialist from 34 bundled ones, builds, verifies and remembers. Use for coding, bugs, refactors, code review, architecture, planning, web development, AI and LLM apps, machine learning, UI design, branding, slides, launch videos, skill security checks, creating skills or agents, whenever the user says "graut", asks "what should I do" or "kya karu", or gives a short or vague request.
+description: The one skill for any software problem. It plans the work, loads the right playbook or specialist from 36 bundled ones, builds, verifies and remembers. Use for coding, bugs, refactors, code review, architecture, planning, web development, AI and LLM apps, machine learning, UI design, branding, slides, launch videos, skill security checks, creating skills or agents, whenever the user says "graut", asks "what should I do" or "kya karu", or gives a short or vague request.
 argument-hint: "[task]  or  [specialist name] [task]"
 license: MIT
 ---
@@ -93,10 +93,12 @@ On Windows, if `python3` fails, run `python`. If a pack's tool or package is mis
 | Choose a look: style, palette, fonts, charts, UX rules | `ui-ux-pro-max` |
 | Brand, logo, tokens, banners, slides, shadcn styling | `design`, `brand`, `design-system`, `banner-design`, `slides`, `ui-styling` |
 | Build, critique, audit or polish a frontend | `impeccable` |
+| Review UI code against web interface rules, accessibility | `web-design-guidelines` |
 | Launch video for a project | `brag-slim`, or `brag` for voiceover and the full workflow |
 | Any other video made from HTML | `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use` |
 | Video formats | `vox-explainer` (explainers), `camera-3d-captions`, `day-in-my-life`, `session-story`, `duo` (phone comparison), `p5-paint-animation`, `prod-by-claude` (music code), `x-posting-license` |
 | Turn a person's way of thinking into a skill | `huashu-nuwa` |
+| Search online marketplaces for a skill, or `find` (below) has no good match | `search-skill`, then `skill-inspector` |
 | Is this skill or plugin safe to install | `skill-inspector` |
 | How to set up agents, commands, hooks, workflows | docs in `<GRAUT>/library/claude-code-best-practice/` |
 

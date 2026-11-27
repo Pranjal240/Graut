@@ -13,6 +13,8 @@ Graut (the master skill, playbooks, panel, installer and meme lines) is by Pranj
 | [HyperFrames community skills](https://github.com/heygen-com/hyperframes-community-skills) | HeyGen and contributors | Apache-2.0 | `camera-3d-captions`, `day-in-my-life`, `duo`, `p5-paint-animation`, `prod-by-claude`, `session-story`, `vox-explainer`, `x-posting-license` |
 | [nuwa-skill](https://github.com/alchaincyf/nuwa-skill) | alchaincyf | MIT | `huashu-nuwa` |
 | [SkillSpector](https://github.com/NVIDIA/SkillSpector) | NVIDIA | Apache-2.0 | `skill-inspector` |
+| [agent-skills](https://github.com/vercel-labs/agent-skills) | Vercel | MIT (stated in its README; the folder carries the license of Vercel's [web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines), whose rules it bundles) | `web-design-guidelines` |
+| [skill-from-masters](https://github.com/GBSOSS/skill-from-masters) | GBSOSS | MIT | `search-skill` |
 | [agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills) | sickn33 and contributors | Code MIT, written content CC BY 4.0 (`UPSTREAM-LICENSE-CONTENT`) | `../library/agentic-awesome-skills` (search index) |
 | [awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) | VoltAgent | MIT | `../library/awesome-agent-skills` |
 | [claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice) | shanraisshan | MIT | `../library/claude-code-best-practice` |

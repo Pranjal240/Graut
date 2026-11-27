@@ -23,7 +23,7 @@ npx graut-bhar-de
 
 ## What is Graut?
 
-One skill for Claude Code, Codex, Antigravity and other coding agents, with 34 specialists inside. Say your problem in a few words. Graut works out what it needs, loads the right expertise, builds it, **checks it before calling it solved**, and remembers your project.
+One skill for Claude Code, Codex, Antigravity and other coding agents, with 36 specialists inside. Say your problem in a few words. Graut works out what it needs, loads the right expertise, builds it, **checks it before calling it solved**, and remembers your project.
 
 ## Install
 
@@ -191,9 +191,14 @@ In Claude Code, Graut sits above the prompt:
 
 ```text
 GRAUT by Pranjal   Tention mat le, teri problem me graut bhar denge
-[off] [lite] [* full] [ultra] | [Review] [Audit] [Doctor] [Copy] [Compact]
-cost $0.42 last $0.11   tokens 1.2M   time 4m 10s 3 turns   tests 11 passed   skills ui-ux-pro-max
+off  lite  [full]  ultra                 Copy  Review  Audit  Doctor  Compact
+──────────────────────────────────────────────────────────────────────────────
+cost              tokens      agent time          tests               skills
+$0.42             1.2M        4m 10s              11 passed           1
+last $0.11 ▂▇▄    3 turns     avg 1m 23s / turn   after last change   ui-ux-pro-max
 ```
+
+Click a level to change it. **Compact** hides the numbers, **Details** brings them back. The panel appears after you install and restart Claude Code, and sits alongside other panels. Other agents have no panel; use `level` there.
 
 | Level | What Graut does |
 |---|---|
@@ -221,7 +226,7 @@ Two features need your own account: image generation in `design` needs a `GEMINI
 
 ## Fewer tokens in every agent
 
-- **One skill to list.** Claude Code, Codex, Antigravity and the rest see `graut`, not 35 skills. Specialists are read only when a task needs them. In Claude Code the 34 direct commands add nothing to a session (measured).
+- **One skill to list.** Claude Code, Codex, Antigravity and the rest see `graut`, not 37 skills. Specialists are read only when a task needs them. In Claude Code the 36 direct commands add nothing to a session (measured).
 - **Lean working rules.** Graut limits command output, reads only what the task needs and keeps replies short, without skipping checks.
 - **Nothing lost.** A loaded specialist is followed in full, exactly as its author wrote it, with Graut's planning, checking and memory around it.
 
@@ -247,9 +252,10 @@ Every change runs the install steps on fresh Windows, macOS and Linux machines: 
 | Routing, chaining, subagents, memory, new skills and agents | `graut` |
 | Writing less code | `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` |
 | Correct engineering | `gravitas`, `gravitas-highstakes`, `gravitas-python`, `gravitas-typescript` |
-| Design | `ui-ux-pro-max`, `impeccable`, `design`, `brand`, `design-system`, `ui-styling`, `banner-design`, `slides` |
+| Design | `ui-ux-pro-max`, `impeccable`, `design`, `brand`, `design-system`, `ui-styling`, `banner-design`, `slides`, `web-design-guidelines` |
 | Video | `brag`, `brag-slim`, `hyperframes`, `hyperframes-cli`, `hyperframes-registry`, `media-use`, `camera-3d-captions`, `day-in-my-life`, `duo`, `p5-paint-animation`, `prod-by-claude`, `session-story`, `vox-explainer`, `x-posting-license` |
 | Turning a person's thinking into a skill | `huashu-nuwa` |
+| Finding more skills | `search-skill` |
 | Skill safety | `skill-inspector`, with NVIDIA SkillSpector |
 | Everything else | `find` searches skills on your machine and thousands in the bundled catalogs; `add` gives one to Graut |
 

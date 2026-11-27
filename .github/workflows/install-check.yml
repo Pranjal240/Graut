@@ -41,7 +41,7 @@ jobs:
           mkdir -p "$HOME/.codex" /tmp/run && cd /tmp/run
           set -o pipefail
           npx --yes --package /tmp/graut.tgz graut-bhar-de --agents codex | tee install.log
-          grep -q "codex: graut installed with 34 skills inside" install.log
+          grep -q "codex: graut installed with 36 skills inside" install.log
           grep -q "le bhai isme graut bhardiya" install.log
       - name: Doctor reports everything present
         shell: bash
@@ -102,8 +102,8 @@ jobs:
           mkdir -p "$HOME/.codex" "$HOME/.claude" "$RUNNER_TEMP/run" && cd "$RUNNER_TEMP/run"
           set -o pipefail
           npx --yes --package "$RUNNER_TEMP/graut.tgz" graut-bhar-de --agents claude,codex | tee install.log
-          grep -q "Graut plugin installed with the panel and 34 skills" install.log
-          grep -q "codex: graut installed with 34 skills inside" install.log
+          grep -q "Graut plugin installed with the panel and 36 skills" install.log
+          grep -q "codex: graut installed with 36 skills inside" install.log
           claude plugin list | grep -q "graut@graut"
       - name: Doctor
         run: |
@@ -139,12 +139,12 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/run"
           npx --yes --package "$RUNNER_TEMP/graut.tgz" graut-bhar-de upgrade --agents codex --no-system-deps | tee upgrade.log
-          grep -q "codex: graut installed with 34 skills inside" upgrade.log
+          grep -q "codex: graut installed with 36 skills inside" upgrade.log
       - name: git clone route
         run: |
           cd "$RUNNER_TEMP"
           git clone -c core.longpaths=true --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" fresh
-          node fresh/skills/graut/scripts/graut.js --agents cursor --no-system-deps | grep -q "cursor: graut installed with 34 skills inside"
+          node fresh/skills/graut/scripts/graut.js --agents cursor --no-system-deps | grep -q "cursor: graut installed with 36 skills inside"
       - name: Claude Code plugin straight from GitHub
         env:
           CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-from-github

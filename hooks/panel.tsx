@@ -11,11 +11,14 @@ const EMPTY: Stats = {
   tokens: 0,
   costUsd: null,
   lastCostUsd: null,
+  turnCosts: [],
   tests: { state: 'none', passed: null },
   packs: [],
 }
 const level = atom({ plugin: 'graut', key: 'level' } as const, 'full')
 const stats = atom({ plugin: 'graut', key: 'stats' } as const, EMPTY)
+
+const compact = atom({ plugin: 'graut', key: 'compact' } as const, false)
 
 const TEST_COMMAND =
   /\b(npm|pnpm|yarn|bun)\s+(run\s+)?test\b|\bnode\s+(--test\b|\S*test\S*\.[cm]?js\b)|\b(pytest|jest|vitest|mocha|phpunit|rspec)\b|\b(go|cargo|dotnet|mvn|gradle|deno)\s+test\b/
@@ -36,6 +39,11 @@ const count = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ?
 const clock = (ms: number) => {
   const s = Math.round(ms / 1000)
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
+}
+/** The last turns' costs as small bars, tallest for the dearest turn. */
+export const bars = (costs: readonly number[]) => {
+  const top = Math.max(...costs, 0)
+  return costs.map(c => '▁▂▃▄▅▆▇█'[top > 0 ? Math.round((Math.max(c, 0) / top) * 7) : 0]).join('')
 }
 const testsText = ({ state, passed }: Tests) =>
   state === 'none'
@@ -121,8 +129,10 @@ export const register: Register = on => {
       : 0
     const cost = (await $.session.usage()).cost?.usd ?? null
     const isMain = e.agentId === undefined
+    const spent = (await read($, stats)).costUsd ?? 0
     await update($, stats, s => ({
       ...s,
+      turnCosts: isMain && cost !== null ? [...(s.turnCosts ?? []), cost - spent].slice(-8) : (s.turnCosts ?? []),
       turns: s.turns + (isMain ? 1 : 0),
       agentMs: s.agentMs + (isMain ? e.durationMs : 0),
       tokens: s.tokens + tokens,
@@ -134,9 +144,13 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
+    // Other panels share this place: theirs is drawn under Graut's, not replaced by it.
+    // next(e) rejects only when nothing answers beneath, as in the test harness.
+    const below = await next(e).catch(() => undefined)
 
     const current = await read($, level)
     const s = await read($, stats)
+    const isCompact = await read($, compact)
     const { Box, Text, Button } = $.ui.resolve(e)
     const failed = (what: string) => () => $.ui.toast(`Graut: ${what} did not work`)
 
@@ -166,7 +180,37 @@ export const register: Register = on => {
       $.ui.toast(done.isCopied ? 'Graut: usage copied' : 'Graut: could not copy')
     }
 
-    return (
+    const turns = s.turnCosts ?? []
+    const testsColor = s.tests.state === 'pass' ? 'success' : s.tests.state === 'fail' ? 'error' : 'text'
+    const columns = [
+      {
+        label: 'cost',
+        value: money(s.costUsd),
+        sub: `last ${money(s.lastCostUsd)}${s.turns && s.costUsd !== null ? ` · avg ${money(s.costUsd / s.turns)}` : ''} ${bars(turns)}`,
+      },
+      { label: 'tokens', value: count(s.tokens), sub: `${s.turns} ${s.turns === 1 ? 'turn' : 'turns'}` },
+      { label: 'agent time', value: clock(s.agentMs), sub: s.turns ? `avg ${clock(s.agentMs / s.turns)} / turn` : '' },
+      {
+        label: 'tests',
+        value: testsText(s.tests),
+        sub: s.tests.state === 'pass' ? 'after last change' : s.tests.state === 'fail' ? 'last run' : '',
+        tone: testsColor,
+      },
+      { label: 'skills', value: `${s.packs.length}`, sub: s.packs.join(', ') || 'none yet' },
+    ] as const
+
+    // A terminal needs widths in cells; elsewhere the columns share the row.
+    const wide = e.surface === 'terminal' ? { width: Math.max(12, Math.floor(e.props.bodyColumns / columns.length) - 2) } : { flexGrow: 1 }
+    const levels = LEVELS.map(l => (
+      <Button
+        key={`level-${l}`}
+        label={l}
+        {...(l === current ? { variant: 'primary' as const } : { plain: true as const, dimColor: true })}
+        onPress={() => choose(l).catch(failed('saving the level'))}
+      />
+    ))
+
+    const mine = (
       <Box flexDirection="column">
         <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
           <Text bold color="warning">
@@ -175,37 +219,44 @@ export const register: Register = on => {
           <Text dimColor>by Pranjal</Text>
           <Text>{mood(e.props.isWorking, current, s.tests)}</Text>
         </Box>
-        <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
-          {LEVELS.map(l => (
-            <Button
-              key={`level-${l}`}
-              label={l === current ? `* ${l}` : l}
-              onPress={() => choose(l).catch(failed('saving the level'))}
-            />
-          ))}
-          <Text dimColor>|</Text>
-          <Button key="review" label="Review" onPress={() => ask('review the current changes for bugs and bloat; report only')} />
-          <Button key="audit" label="Audit" onPress={() => ask('audit this project for bugs, security, accessibility and bloat; report only')} />
-          <Button key="doctor" label="Doctor" onPress={() => doctor().catch(failed('doctor (is Node.js installed?)'))} />
-          <Button key="copy" label="Copy" onPress={() => copy().catch(failed('copy'))} />
-          <Button key="compact" label="Compact" onPress={() => $.command.run({ command: 'compact' }).catch(failed('compact'))} />
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={1}>
+          {levels}
+          <Box flexGrow={1} />
+          <Button key="copy" plain label="Copy" onPress={() => copy().catch(failed('copy'))} />
+          <Button key="review" plain label="Review" onPress={() => ask('review the current changes for bugs and bloat; report only')} />
+          <Button key="audit" plain label="Audit" onPress={() => ask('audit this project for bugs, security, accessibility and bloat; report only')} />
+          <Button key="doctor" plain label="Doctor" onPress={() => doctor().catch(failed('doctor (is Node.js installed?)'))} />
+          <Button key="compact" plain label={isCompact ? 'Details' : 'Compact'} onPress={() => update($, compact, v => !v)} />
         </Box>
-        <Box flexDirection="row" flexWrap="wrap" columnGap={3}>
-          <Text>
-            cost {money(s.costUsd)}
-            <Text dimColor> last {money(s.lastCostUsd)}</Text>
-          </Text>
-          <Text>tokens {count(s.tokens)}</Text>
-          <Text>
-            time {clock(s.agentMs)}
-            <Text dimColor> {s.turns} turns</Text>
-          </Text>
-          <Text color={s.tests.state === 'pass' ? 'success' : s.tests.state === 'fail' ? 'error' : 'text'}>
-            tests {testsText(s.tests)}
-          </Text>
-          <Text dimColor>skills {s.packs.join(', ') || 'none yet'}</Text>
-        </Box>
+        {isCompact ? null : (
+          <Box flexDirection="column">
+            <Text dimColor wrap="truncate-end">
+              {'─'.repeat(e.props.bodyColumns)}
+            </Text>
+            <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
+              {columns.map(c => (
+                <Box key={c.label} flexDirection="column" {...wide}>
+                  <Text dimColor>{c.label}</Text>
+                  <Text bold color={'tone' in c ? c.tone : 'text'}>
+                    {c.value}
+                  </Text>
+                  <Text dimColor wrap="truncate-end">
+                    {c.sub}
+                  </Text>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
       </Box>
+    )
+    return below ? (
+      <Box flexDirection="column">
+        {mine}
+        {below}
+      </Box>
+    ) : (
+      mine
     )
   })
 }

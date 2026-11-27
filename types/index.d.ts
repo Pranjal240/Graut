@@ -7,6 +7,7 @@ export type Stats = {
   agentMs: number
   tokens: number
   costUsd: number | null
+  turnCosts: number[]
   lastCostUsd: number | null
   tests: Tests
   /** Specialists read this session, in the order first used. */
@@ -15,6 +16,6 @@ export type Stats = {
 
 declare module 'claude-code' {
   interface PluginState {
-    graut: { level: Level; stats: Stats }
+    graut: { level: Level; stats: Stats; compact: boolean }
   }
 }

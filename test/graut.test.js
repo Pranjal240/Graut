@@ -211,7 +211,7 @@ const walk = (dir) =>
 test('agents see exactly one skill, and every pack inside it is complete', () => {
   const { sources } = json(path.join(GRAUT, 'sources.json'));
   const names = sources.flatMap((s) => Object.keys(s.skills || {}));
-  assert.strictEqual(names.length, 34);
+  assert.strictEqual(names.length, 36);
   assert.deepStrictEqual(fs.readdirSync(path.join(ROOT, 'skills')), ['graut']);
   const skillFiles = walk(GRAUT).filter((f) => path.basename(f) === 'SKILL.md');
   assert.deepStrictEqual(skillFiles, [path.join(GRAUT, 'SKILL.md')]);

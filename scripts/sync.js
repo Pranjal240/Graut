@@ -71,6 +71,11 @@ for (const source of loadManifest().sources) {
       }
     }
   }
+  // for a repo without a license file: the license of the project whose text the skill carries
+  if (source.licenseFrom) {
+    const license = path.join(fetchSource(source.licenseFrom, []), 'LICENSE');
+    for (const [name] of skills) fs.copyFileSync(license, path.join(PACKS, name, 'UPSTREAM-LICENSE'));
+  }
   for (const [file, replacements] of Object.entries(source.patch || {})) patch(path.join(PACKS, file), replacements);
 
   // Search lists and reference docs: text only, so pictures do not bloat the repo.

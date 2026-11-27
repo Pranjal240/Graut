@@ -123,6 +123,27 @@
       }
     },
     {
+      "id": "vercel-agent-skills",
+      "repo": "vercel-labs/agent-skills",
+      "sha": "5a37a6329fbad3666c3207392a6a7c0110e92efb",
+      "skills": {
+        "web-design-guidelines": "skills/web-design-guidelines"
+      },
+      "licenseFrom": {
+        "id": "vercel-web-interface-guidelines",
+        "repo": "vercel-labs/web-interface-guidelines",
+        "sha": "434b7f91364665f2f733b310ec54809bf8f37937"
+      }
+    },
+    {
+      "id": "skill-from-masters",
+      "repo": "GBSOSS/skill-from-masters",
+      "sha": "c4d27d29bfda00f73c23abd4990f700a6d3df480",
+      "skills": {
+        "search-skill": "skills/search-skill"
+      }
+    },
+    {
       "id": "agentic-awesome-skills",
       "repo": "sickn33/agentic-awesome-skills",
       "sha": "ca18ff485998192914e1003cbc1d7489cd1c3e65",
