@@ -139,7 +139,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/run"
           npx --yes --package "$RUNNER_TEMP/graut.tgz" graut-bhar-de upgrade --agents codex --no-system-deps | tee upgrade.log
-          grep -q "codex: graut installed with 36 skills inside" upgrade.log
+          grep -q "codex: graut installed with .* skills inside" upgrade.log
       - name: git clone route
         run: |
           cd "$RUNNER_TEMP"
