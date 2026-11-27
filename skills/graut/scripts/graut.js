@@ -6,7 +6,7 @@ const path = require('path');
 const { parseArgs } = require('util');
 const { run, works, shell, npm, ensureTool, fixFor, TOOLS, prepare, report } = require('./setup.js');
 const { buildMap } = require('./map.js');
-const { context, installed: hasCodeGraph, indexedRoot } = require('./context.js');
+const { context, installed: hasCodeGraph, indexedRoot, real } = require('./context.js');
 
 const SKILL_DIR = path.dirname(__dirname);
 // The npm package or clone this script runs from; it also holds the Claude Code plugin.
@@ -480,7 +480,7 @@ function hook() {
     return 0;
   }
   if (!read(AGENTS.claude.memory).includes(text)) console.log(text);
-  const here = path.resolve(process.cwd());
+  const here = real(process.cwd());
   // Where an index already exists, asking it first costs less than searching, with or without the skill.
   if (level !== 'lite' && read(at('.graut', 'context')).trim() !== 'off' && indexedRoot(here, HOME)) {
     const script = path.join(SKILL_DIR, 'scripts', 'graut.js').split(path.sep).join('/');
@@ -489,7 +489,7 @@ function hook() {
     );
   }
   // ponytail prints the same map; a home folder or a drive is not a project and is too big to walk
-  if (level === 'lite' || pluginOn('ponytail@ponytail') || here === path.resolve(HOME) || here === path.parse(here).root) return 0;
+  if (level === 'lite' || pluginOn('ponytail@ponytail') || here === real(HOME) || here === path.parse(here).root) return 0;
   try {
     const map = buildMap(here);
     if (map) console.log(map);

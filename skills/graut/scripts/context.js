@@ -33,9 +33,19 @@ const words = (text) => text.replace(/[^\p{L}\p{N}_./ -]+/gu, ' ').split(/\s+/).
 
 const indexed = (dir) => fs.existsSync(path.join(dir, '.codegraph', 'codegraph.db'));
 
+// The folder a path really points to: macOS hands out /var/... for /private/var/..., and homes can be links.
+function real(dir) {
+  try {
+    return fs.realpathSync.native(dir);
+  } catch {
+    return path.resolve(dir);
+  }
+}
+
 // The nearest folder at or above this one that has an index, below the home folder.
 function indexedRoot(start, home) {
-  for (let dir = path.resolve(start); dir !== path.resolve(home) && dir !== path.dirname(dir); dir = path.dirname(dir)) {
+  const top = real(home);
+  for (let dir = real(start); dir !== top && dir !== path.dirname(dir); dir = path.dirname(dir)) {
     if (indexed(dir)) return dir;
   }
   return null;
@@ -46,7 +56,7 @@ function projectRoot(start, home) {
   const found = indexedRoot(start, home);
   if (found) return found;
   const git = spawnSync('git', ['-C', start, 'rev-parse', '--show-toplevel'], { cwd: os.tmpdir(), encoding: 'utf8' });
-  return git.status === 0 ? path.resolve(git.stdout.trim()) : start;
+  return git.status === 0 ? real(git.stdout.trim()) : start;
 }
 
 function hasSource(dir, depth = 0, seen = { count: 0 }) {
@@ -72,9 +82,8 @@ function context(task, { home = os.homedir(), cwd = process.cwd() } = {}) {
   const without = (why) => say(`No code context: ${why}. Search and read the files you need instead.`);
   const query = words(task);
   if (!query.length) return without('name the symbols, files or behaviour the task is about');
-  const start = path.resolve(cwd);
-  const root = projectRoot(start, path.resolve(home));
-  if (root === path.resolve(home) || root === path.parse(root).root) return without('this is a home folder or a drive, not a project');
+  const root = projectRoot(real(cwd), real(home));
+  if (root === real(home) || root === path.parse(root).root) return without('this is a home folder or a drive, not a project');
   if (!indexed(root) && !hasSource(root)) return without('there is no source code here');
   if (!installed()) return without(`CodeGraph is not installed (the user can run: ${INSTALL})`);
 
@@ -94,4 +103,4 @@ function context(task, { home = os.homedir(), cwd = process.cwd() } = {}) {
   return say(text.length > MAX_CHARS ? `${text.slice(0, MAX_CHARS)}\n(cut here; ask again with narrower words)` : text);
 }
 
-module.exports = { context, installed, indexedRoot, PACKAGE, INSTALL };
+module.exports = { context, installed, indexedRoot, real, PACKAGE, INSTALL };

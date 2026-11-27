@@ -155,11 +155,14 @@ jobs:
           test -s cues.json
           uv run --project "$P" --with pytest python -m pytest "$P/tests" -q -p no:cacheprovider
       - name: Skill security scan (skill-inspector)
+        env:
+          PYTHONUTF8: '1'
         run: |
           S=$(command -v skillspector || echo "$(uv tool dir --bin)/skillspector")
           cd "$RUNNER_TEMP"
-          "$S" scan "$HOME/.agents/skills/graut/packs/web-design-guidelines" --no-llm --format json --output scan.json || true
-          test -s scan.json
+          # Windows refuses --output, so the report is read from standard output, as the skill says
+          "$S" scan "$HOME/.agents/skills/graut/packs/web-design-guidelines" --no-llm --format json > scan.json || true
+          node -e "const r = require('fs').readFileSync('scan.json', 'utf8'); JSON.parse(r); console.log(r.slice(0, 600))"
       - name: Finding more skills
         run: node "$HOME/.agents/skills/graut/scripts/graut.js" find "kubernetes deploy" | grep -i kubernetes
       - name: Code context really runs

@@ -211,6 +211,11 @@ test('context indexes a project once, then reuses it, with reporting off and onl
   write(path.join(notes, 'a.txt'), 'hi');
   assert.match(ask(notes, true, 'pay'), /there is no source code here/);
   assert.match(ask(home, true, 'pay'), /home folder/);
+  // reached through a link, as macOS does with its temporary folders, it is still the home folder
+  const linked = path.join(tmp, 'home-link');
+  fs.symlinkSync(home, linked, 'junction');
+  assert.match(ask(linked, true, 'pay'), /home folder/);
+  fs.rmSync(linked, { recursive: true, force: true });
   assert.match(ask(project, true), /name the symbols/);
 
   graut('context', 'off');
