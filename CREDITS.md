@@ -4,7 +4,7 @@ Graut (the master skill, playbooks, panel, installer and meme lines) is by Pranj
 
 | Project | Author | License | Folders in `skills/graut/packs/` |
 |---|---|---|---|
-| [ponytail](https://github.com/DietrichGebert/ponytail) | DietrichGebert | MIT | `ponytail`, `ponytail-*` |
+| [ponytail](https://github.com/DietrichGebert/ponytail) | DietrichGebert | MIT | `ponytail`, `ponytail-*`; the code map, panel numbers and metrics drawing are adapted from its plugin |
 | [Gravitas](https://github.com/udaysharmadev/Gravitas) | udaysharmadev | MIT | `gravitas`, `gravitas-*` |
 | [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | nextlevelbuilder | MIT | `ui-ux-pro-max`, `banner-design`, `brand`, `design`, `design-system`, `slides`, `ui-styling` |
 | [impeccable](https://github.com/pbakaus/impeccable) | pbakaus | Apache-2.0 | `impeccable` |

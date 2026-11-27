@@ -178,7 +178,9 @@ kya karu? my app is slow
 
 Every skill below has its own `/graut:<name>` command. In other agents, or when Graut is installed as a plain skill, write `/graut impeccable audit my landing page`.
 
-| When | Graut says |
+Graut stays quiet until it is needed. Questions, renames, small edits and ordinary fixes are done directly. The skill is used when you call it, or when the job needs a specialist, and only then does it speak:
+
+| While the skill is working | Graut says |
 |---|---|
 | Starting a task | Tention mat le, teri problem me graut bhar denge |
 | You ask "kya karu?" | Isme Graut bhar denge, and then the answer |
@@ -187,27 +189,41 @@ Every skill below has its own `/graut:<name>` command. In other agents, or when 
 
 ## The panel
 
-In Claude Code, Graut sits above the prompt:
+In Claude Code, Graut sits above the prompt as one line:
 
 ```text
-GRAUT by Pranjal   Tention mat le, teri problem me graut bhar denge
-off  lite  [full]  ultra                 Copy  Review  Audit  Doctor  Compact
-──────────────────────────────────────────────────────────────────────────────
-cost              tokens      agent time          tests               skills
-$0.42             1.2M        4m 10s              11 passed           1
-last $0.11 ▂▇▄    3 turns     avg 1m 23s / turn   after last change   ui-ux-pro-max
+Graut  ● full  $0.42  last $0.11  context 42%  tests 11 passed      Review  Audit  Doctor  Details
 ```
 
-Click a level to change it. **Compact** hides the numbers, **Details** brings them back. The panel appears after you install and restart Claude Code, and sits alongside other panels. Other agents have no panel; use `level` there.
+**Details** opens the full view (Graut remembers your choice):
+
+```text
+Graut  off  lite  [full]  ultra                      Copy  Review  Audit  Doctor  Compact
+──────────────────────────────────────────────────────────────────────────────────────────
+cost                  tokens       agent time       context            tests
+$0.42                 1.2M         4m 10s           42%                11 passed
+last $0.11 · ⌀ $0.14  3 turns      ⌀ 1m 23s / turn  84.0k of 200.0k    after last change
+```
+
+| Column | Meaning |
+|---|---|
+| cost | the session's total, the last turn's cost and the average per turn |
+| tokens, agent time | what the panel has counted, kept when you resume the session |
+| context | how full the model's memory is; from 70% it suggests `/compact` |
+| reuse, callers | shown once code changes: existing functions reused, and removed ones still called |
+| tests | the last test run; `rerun` after you edit code |
+| skills | the Graut specialists used in this session |
+
+The panel only watches: it adds nothing to what the model reads, except one note when you change the level. It appears after you install and restart Claude Code. If you also run the ponytail plugin you will see two panels; Graut already includes ponytail, so `claude plugin disable ponytail@ponytail` leaves only Graut's. Other agents have no panel; use `level` there.
 
 | Level | What Graut does |
 |---|---|
 | `off` | Stays out of the way |
-| `lite` | The short version; specialists only when needed |
-| `full` | Everything (default) |
-| `ultra` | Loads every matching specialist, plans in writing, verifies, reviews its own work |
+| `lite` | Asks the agent to spend few tokens; the skill runs only when you call it |
+| `full` | Default: spend few tokens, reuse existing code, call the skill when a specialist is needed. In Claude Code the session also starts with a short map of your code |
+| `ultra` | Uses the skill for anything bigger than a quick edit: plan, specialists, verify, review |
 
-Other agents: `npx graut-bhar-de level ultra`. If you also have the ponytail plugin, Graut already includes it; `claude plugin disable ponytail@ponytail` leaves only the Graut panel.
+Other agents: `npx graut-bhar-de level ultra`.
 
 ## What install sets up
 
@@ -220,7 +236,7 @@ Other agents: `npx graut-bhar-de level ultra`. If you also have the ponytail plu
 | Python packages: numpy, scipy, pillow, google-genai | `design`, `day-in-my-life` |
 | Node packages | `day-in-my-life`, `session-story`, `p5-paint-animation` |
 | The design engine and the video tool | `impeccable`, HyperFrames skills |
-| A short note in `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` (old file saved as `.graut.bak`) | keeps Graut on |
+| A short note in `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` (old file saved as `.graut.bak`) | a quiet note: keep context small, call Graut only when needed. In Claude Code the plugin does this at session start, so `CLAUDE.md` is left alone |
 
 Two features need your own account: image generation in `design` needs a `GEMINI_API_KEY`, and HeyGen voices and avatars in `media-use` need a HeyGen login.
 

@@ -1,6 +1,6 @@
 ---
 name: graut
-description: The one skill for any software problem. It plans the work, loads the right playbook or specialist from 36 bundled ones, builds, verifies and remembers. Use for coding, bugs, refactors, code review, architecture, planning, web development, AI and LLM apps, machine learning, UI design, branding, slides, launch videos, skill security checks, creating skills or agents, whenever the user says "graut", asks "what should I do" or "kya karu", or gives a short or vague request.
+description: Graut, one skill with 36 bundled specialists. Use when the user calls it (/graut, "graut", "kya karu"), or when a task needs a specialist: building or redesigning a website or UI, UI or accessibility review, branding, slides, launch or explainer videos, high-risk changes (auth, payments, data migration), hard debugging, over-engineering review or audit, or finding, making or safety-checking a skill. Never for a question, a rename, a small edit or an ordinary bug fix: do those directly, without this skill.
 argument-hint: "[task]  or  [specialist name] [task]"
 license: MIT
 ---
@@ -18,14 +18,15 @@ Do these in order. Small models: follow them literally.
 3. Say the goal and the check that will prove it, in one line each.
 4. If the table under "Load" matches the task, read that file and follow it.
 5. Make the smallest complete change.
-6. Run the check. Failed: read the error, change something, run again.
-7. Passed: say what changed and the last line. Could not check: say the third line.
+6. Website or UI work: read `<GRAUT>/packs/impeccable/reference/craft-floor.md` and fix what fails it. The task is not done before this.
+7. Run the check. Failed: read the error, change something, run again.
+8. Passed: say what changed and the last line. Could not check: say the third line.
 
 Never invent a file, a function, a command output or a result. Look, or say you do not know.
 
 ## The four lines
 
-Say them exactly as written, each on its own line.
+Say them exactly as written, each on its own line, and only while this skill is working on a task. Never add them to a reply that did not need this skill.
 
 | When | Line |
 |---|---|

@@ -1,68 +1,36 @@
 // The Graut panel: a band above the prompt with the level, quick actions and what the session has used.
+// It watches and reports; it adds nothing to what the model reads unless the level changes.
+// Caller and reuse tracking follow ponytail 5.3.3's band (MIT, see metrics.ts).
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Level, Stats, Tests } from '../types'
+import { GREP_DEFS, TEST_COMMAND, bars, changes, clock, count, defsIn, hits, inProject, isCode, knownNames, metricsSvg, money, percent, readTests, testsText } from './metrics'
+import type { Col } from './metrics'
 
 const LEVELS: readonly Level[] = ['off', 'lite', 'full', 'ultra']
 const EMPTY: Stats = {
   turns: 0,
-  agentMs: 0,
-  tokens: 0,
   costUsd: null,
-  lastCostUsd: null,
   turnCosts: [],
-  tests: { state: 'none', passed: null },
+  agentMs: 0,
+  timed: 0,
+  tokens: 0,
+  context: null,
+  tests: { state: 'none', passed: null, failed: null },
   packs: [],
+  reused: [],
+  created: [],
+  removed: [],
+  openCallers: [],
 }
 const level = atom({ plugin: 'graut', key: 'level' } as const, 'full')
 const stats = atom({ plugin: 'graut', key: 'stats' } as const, EMPTY)
+const details = atom({ plugin: 'graut', key: 'details' } as const, false)
 
-const compact = atom({ plugin: 'graut', key: 'compact' } as const, false)
-
-const TEST_COMMAND =
-  /\b(npm|pnpm|yarn|bun)\s+(run\s+)?test\b|\bnode\s+(--test\b|\S*test\S*\.[cm]?js\b)|\b(pytest|jest|vitest|mocha|phpunit|rspec)\b|\b(go|cargo|dotnet|mvn|gradle|deno)\s+test\b/
-
-/** Reads a test run's summary. The last count wins: runners print their totals at the end. */
-export const readTests = (output: string, failedExit: boolean): Tests => {
-  const last = (patterns: RegExp) => {
-    const found = [...output.matchAll(patterns)].pop()
-    return found ? Number(found[1] ?? found[2]) : null
-  }
-  const passed = last(/(\d+) passed|(?:^|\n)[#ℹ] pass (\d+)/g)
-  const failed = last(/(\d+) fail(?:ed|ing|ures?)\b|(?:^|\n)[#ℹ] fail (\d+)/g)
-  return { state: failedExit || (failed ?? 0) > 0 ? 'fail' : 'pass', passed }
-}
-
-const money = (usd: number | null) => (usd === null ? 'n/a' : `$${usd.toFixed(2)}`)
-const count = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${n}`)
-const clock = (ms: number) => {
-  const s = Math.round(ms / 1000)
-  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
-}
-/** The last turns' costs as small bars, tallest for the dearest turn. */
-export const bars = (costs: readonly number[]) => {
-  const top = Math.max(...costs, 0)
-  return costs.map(c => '▁▂▃▄▅▆▇█'[top > 0 ? Math.round((Math.max(c, 0) / top) * 7) : 0]).join('')
-}
-const testsText = ({ state, passed }: Tests) =>
-  state === 'none'
-    ? 'not run'
-    : state === 'stale'
-      ? 'rerun (files changed)'
-      : state === 'fail'
-        ? 'failing'
-        : passed === null
-          ? 'passed'
-          : `${passed} passed`
-
-const mood = (isWorking: boolean, current: Level, tests: Tests) => {
-  if (current === 'off') return 'Graut is off'
-  if (isWorking) return 'Tention mat le, teri problem me graut bhar denge'
-  if (tests.state === 'fail') return 'teri problem me graut to bhar diya, par isse kam nhi chalega'
-  if (tests.state === 'pass') return 'le bhai isme graut bhardiya'
-  return 'Isme Graut bhar denge'
-}
+// State kept by an older version of the panel lacks newer fields.
+const load = async ($: EngineInterface): Promise<Stats> => ({ ...EMPTY, ...(await read($, stats)) })
+const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])]
 
 const levelFile = async ($: EngineInterface) =>
   `${(await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE'))}/.graut/level`
@@ -79,15 +47,90 @@ const rules = async ($: EngineInterface, next: Level) => {
   return (JSON.parse(text) as Record<string, string>)[next]
 }
 
+/** The session's own figures, which also cover what happened before the panel loaded. */
+const measure = async ($: EngineInterface) => {
+  const usage = await $.session.usage().catch(() => undefined)
+  const turns = await $.session.turns().catch(() => undefined)
+  const c = usage?.context
+  return {
+    cost: usage?.cost?.usd,
+    turns,
+    context: c?.percent === undefined ? null : { percent: c.percent, tokens: c.tokens ?? 0, window: c.window },
+  }
+}
+
+// What only the panel counts is kept per session, so a resumed session goes on from where it was.
+type Kept = Pick<Stats, 'agentMs' | 'timed' | 'tokens' | 'turnCosts' | 'tests' | 'packs' | 'reused' | 'created'>
+const sessions = async ($: EngineInterface) =>
+  ((await $.store.get('sessions').catch(() => undefined)) ?? []) as [string, Kept][]
+
+const keep = async ($: EngineInterface, s: Stats) => {
+  const id = await $.session.id()
+  const { agentMs, timed, tokens, turnCosts, tests, packs, reused, created } = s
+  const others = (await sessions($)).filter(([key]) => key !== id)
+  const mine: Kept = { agentMs, timed, tokens, turnCosts, tests, packs, reused, created }
+  await $.store.set('sessions', [...others, [id, mine]].slice(-20))
+}
+
+/** Sets the panel up for the current session and returns the names its code already defines. */
+const begin = async ($: EngineInterface, carry: Partial<Stats>) => {
+  const id = await $.session.id().catch(() => '')
+  const kept = (await sessions($)).find(([key]) => key === id)?.[1]
+  const m = await measure($)
+  await update($, stats, () => ({
+    ...EMPTY,
+    ...carry,
+    ...kept,
+    // The cost so far is the baseline for the next turn's own cost.
+    costUsd: m.cost ?? null,
+    turns: m.turns ?? 0,
+    context: m.context,
+  }))
+  const grep = await $.process.run(['git', 'grep', '--untracked', '-nE', GREP_DEFS]).catch(() => undefined)
+  return knownNames(grep?.exitCode === 0 ? grep.stdout : '')
+}
+
+/** Removed definitions that are not defined again but still called somewhere. */
+const stillCalled = async ($: EngineInterface, removed: readonly string[]) => {
+  const names: string[] = []
+  const callers: string[] = []
+  for (const name of removed) {
+    // shortcut: a name match with git grep, so a same-named call in another module counts too.
+    const grep = await $.process.run(['git', 'grep', '--untracked', '-nw', '-e', name]).catch(() => undefined)
+    const rows = hits(grep?.stdout ?? '')
+    if (rows.some(r => defsIn(r.file, r.text.trimStart()).includes(name))) continue
+    const call = new RegExp(`(?<![\\w$])${name.replace(/\$/g, '\\$')}\\s*\\(`)
+    const found = rows.filter(r => call.test(r.text)).map(r => `${r.file}:${r.line}`)
+    if (found.length) {
+      names.push(name)
+      callers.push(...found)
+    }
+  }
+  return { names, callers }
+}
+
 export const register: Register = on => {
   // The level the model last heard about; the session-start hook tells it the saved one.
   let announced: Level | undefined
+  // Definitions that existed when the session started: what new code can reuse.
+  let known: ReadonlySet<string> = new Set()
 
   on('session.start', async ($, e, next) => {
     announced = await savedLevel($)
     const saved = announced
     await update($, level, () => saved)
+    const open = (await $.store.get('details').catch(() => undefined)) === true
+    await update($, details, () => open)
+    known = await begin($, await load($)).catch(() => known)
     return next(e)
+  })
+
+  // /clear, /resume and /branch go on under another session id with no session.start.
+  on('command.run', { command: ['clear', 'resume', 'branch'] }, async ($, e, next) => {
+    const before = await $.session.id()
+    const result = await next(e)
+    if ((await $.session.id()) !== before) known = await begin($, {}).catch(() => known)
+    return result
   })
 
   on('prompt.submit', async ($, e, next) => {
@@ -100,21 +143,40 @@ export const register: Register = on => {
   })
 
   on('tool.call', async ($, e, next) => {
+    const call = e as { tool: string; command?: string; file_path?: string; old_string?: string; new_string?: string; content?: string }
+    const isEdit = call.tool === 'Edit' || call.tool === 'Write'
+    const file = call.file_path ?? ''
+    // A file outside the project (a scratch script) is neither reused nor covered by its tests.
+    const root = isEdit ? ((await $.session.repo().catch(() => null))?.root ?? (await $.session.cwd().catch(() => ''))) : ''
+    const watched = isEdit && (root === '' || inProject(file, root))
+    // Read before the edit runs, or the old text of a rewritten file is gone.
+    const before = !watched ? '' : call.tool === 'Write' ? await $.fs.read(file).catch(() => '') : (call.old_string ?? '')
+
     const ran = await next(e)
     if (ran.deny !== undefined) return ran
 
-    const call = e as { tool: string; command?: string; file_path?: string }
-    const pack = call.tool === 'Read' ? /[\\/]packs[\\/]([a-z0-9-]+)[\\/]/.exec(call.file_path ?? '')?.[1] : undefined
+    const pack = call.tool === 'Read' ? /[\\/]packs[\\/]([a-z0-9-]+)[\\/]/.exec(file)?.[1] : undefined
     if (pack) {
-      await update($, stats, s => (s.packs.includes(pack) ? s : { ...s, packs: [...s.packs, pack] }))
+      await update($, stats, s => ({ ...EMPTY, ...s, packs: union(s.packs ?? [], [pack]) }))
     }
-    if ((call.tool === 'Edit' || call.tool === 'Write') && ran.isError !== true) {
-      const stale: Tests = { state: 'stale', passed: null }
-      await update($, stats, s => (s.tests.state === 'none' ? s : { ...s, tests: stale }))
+    if (watched && ran.isError !== true) {
+      const after = (call.tool === 'Write' ? call.content : call.new_string) ?? ''
+      const found = changes(file, before, after, known)
+      await update($, stats, old => {
+        const s = { ...EMPTY, ...old }
+        const stale: Tests = { state: 'stale', passed: null, failed: null }
+        return {
+          ...s,
+          reused: union(s.reused, found.reused),
+          created: union(s.created, found.created),
+          removed: union(s.removed, found.removed),
+          tests: isCode(file) && s.tests.state !== 'none' ? stale : s.tests,
+        }
+      })
     }
     if ((call.tool === 'Bash' || call.tool === 'PowerShell') && TEST_COMMAND.test(call.command ?? '')) {
       const output = ran.text ?? JSON.stringify(ran.result ?? '')
-      await update($, stats, s => ({ ...s, tests: readTests(output, ran.isError === true) }))
+      await update($, stats, s => ({ ...EMPTY, ...s, tests: readTests(output, ran.isError === true) }))
     }
     return ran
   })
@@ -127,18 +189,32 @@ export const register: Register = on => {
         (usage.cache_read_input_tokens ?? 0) +
         (usage.cache_creation_input_tokens ?? 0)
       : 0
-    const cost = (await $.session.usage()).cost?.usd ?? null
-    const isMain = e.agentId === undefined
-    const spent = (await read($, stats)).costUsd ?? 0
-    await update($, stats, s => ({
-      ...s,
-      turnCosts: isMain && cost !== null ? [...(s.turnCosts ?? []), cost - spent].slice(-8) : (s.turnCosts ?? []),
-      turns: s.turns + (isMain ? 1 : 0),
-      agentMs: s.agentMs + (isMain ? e.durationMs : 0),
-      tokens: s.tokens + tokens,
-      costUsd: cost,
-      lastCostUsd: isMain && cost !== null ? cost - (s.costUsd ?? 0) : s.lastCostUsd,
-    }))
+    if (e.agentId !== undefined) {
+      // A subagent's tokens count; its cost is already in the session cost the main turn reads.
+      await update($, stats, s => ({ ...EMPTY, ...s, tokens: (s.tokens ?? 0) + tokens }))
+      return next(e)
+    }
+
+    const m = await measure($)
+    const open = await stillCalled($, (await load($)).removed)
+    await update($, stats, old => {
+      const s = { ...EMPTY, ...old }
+      // Without an earlier reading the turn's own cost is unknown. A lower total means the ledger started over.
+      const spent = m.cost === undefined || s.costUsd === null ? null : m.cost >= s.costUsd ? m.cost - s.costUsd : m.cost
+      return {
+        ...s,
+        turns: m.turns ?? s.turns + 1,
+        costUsd: m.cost ?? s.costUsd,
+        turnCosts: spent === null ? s.turnCosts : [...s.turnCosts, spent].slice(-20),
+        agentMs: s.agentMs + e.durationMs,
+        timed: s.timed + 1,
+        tokens: s.tokens + tokens,
+        context: m.context ?? s.context,
+        removed: open.names,
+        openCallers: open.callers,
+      }
+    })
+    await keep($, await load($)).catch(() => undefined)
     return next(e)
   })
 
@@ -149,14 +225,19 @@ export const register: Register = on => {
     const below = await next(e).catch(() => undefined)
 
     const current = await read($, level)
-    const s = await read($, stats)
-    const isCompact = await read($, compact)
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const s = await load($)
+    const isOpen = await read($, details)
+    const ui = $.ui.resolve(e)
+    const { Box, Text, Button } = ui
     const failed = (what: string) => () => $.ui.toast(`Graut: ${what} did not work`)
 
     const choose = async (chosen: Level) => {
       await $.fs.write(await levelFile($), `${chosen}\n`)
       await update($, level, () => chosen)
+    }
+    const toggle = async () => {
+      await update($, details, () => !isOpen)
+      await $.store.set('details', !isOpen)
     }
     const ask = (args: string) => $.command.run({ command: 'graut:graut', args }).catch(failed('that command'))
     const doctor = async () => {
@@ -170,8 +251,10 @@ export const register: Register = on => {
           '|---|---|',
           `| level | ${current} |`,
           `| cost | ${money(s.costUsd)} |`,
+          `| turns | ${s.turns} |`,
           `| tokens | ${count(s.tokens)} |`,
-          `| agent time | ${clock(s.agentMs)} over ${s.turns} turns |`,
+          `| context | ${s.context ? `${s.context.percent}%` : 'n/a'} |`,
+          `| agent time | ${clock(s.agentMs)} |`,
           `| tests | ${testsText(s.tests)} |`,
           `| specialists | ${s.packs.join(', ') || 'none'} |`,
         ].join('\n'),
@@ -180,83 +263,137 @@ export const register: Register = on => {
       $.ui.toast(done.isCopied ? 'Graut: usage copied' : 'Graut: could not copy')
     }
 
-    const turns = s.turnCosts ?? []
-    const testsColor = s.tests.state === 'pass' ? 'success' : s.tests.state === 'fail' ? 'error' : 'text'
-    const columns = [
+    const last = s.turnCosts[s.turnCosts.length - 1]
+    const average = s.costUsd !== null && s.turns > 0 ? s.costUsd / s.turns : null
+    const reuse = percent(s.reused.length, s.created.length)
+    const isFull = (s.context?.percent ?? 0) >= 70
+    const testsColor = s.tests.state === 'pass' ? 'success' : s.tests.state === 'fail' ? 'error' : undefined
+
+    const title = (
+      <Text bold color="warning">
+        Graut
+      </Text>
+    )
+    const actions = [
+      <Button key="review" plain label="Review" onPress={() => ask('review the current changes for bugs and bloat; report only')} />,
+      <Button key="audit" plain label="Audit" onPress={() => ask('audit this project for bugs, security, accessibility and bloat; report only')} />,
+      <Button key="doctor" plain label="Doctor" onPress={() => doctor().catch(failed('doctor (is Node.js installed?)'))} />,
+      <Button key="details" plain label={isOpen ? 'Compact' : 'Details'} onPress={toggle} />,
+    ]
+    const stack = (mine: NonNullable<typeof below>) =>
+      below ? (
+        <Box flexDirection="column">
+          {mine}
+          {below}
+        </Box>
+      ) : (
+        mine
+      )
+    // bodyColumns counts terminal cells; elsewhere buttons are wider than cells, so no width is set.
+    const width = e.surface === 'terminal' ? e.props.bodyColumns : undefined
+
+    if (!isOpen) {
+      return stack(
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} width={width}>
+          {title}
+          <Button key="level" plain onPress={toggle}>
+            <Text color={current === 'off' ? 'inactive' : 'suggestion'}>●</Text> {current}
+          </Button>
+          <Text>{money(s.costUsd)}</Text>
+          {last === undefined ? null : <Text dimColor>last {money(last)}</Text>}
+          {s.context ? <Text color={isFull ? 'warning' : undefined}>context {s.context.percent}%</Text> : null}
+          {reuse === undefined ? null : <Text>{reuse}% reuse</Text>}
+          {s.openCallers.length ? <Text color="warning">⚠ {s.openCallers.length} callers open</Text> : null}
+          {s.tests.state === 'none' ? null : <Text color={testsColor}>tests {testsText(s.tests)}</Text>}
+          <Box flexGrow={1} />
+          {actions}
+        </Box>,
+      )
+    }
+
+    // Only columns that say something; the rest appear once there is something to report.
+    const cols: Col[] = [
       {
+        key: 'cost',
         label: 'cost',
         value: money(s.costUsd),
-        sub: `last ${money(s.lastCostUsd)}${s.turns && s.costUsd !== null ? ` · avg ${money(s.costUsd / s.turns)}` : ''} ${bars(turns)}`,
+        sub: [last === undefined ? '' : `last ${money(last)}`, average === null ? '' : `⌀ ${money(average)}`].filter(Boolean).join(' · '),
       },
-      { label: 'tokens', value: count(s.tokens), sub: `${s.turns} ${s.turns === 1 ? 'turn' : 'turns'}` },
-      { label: 'agent time', value: clock(s.agentMs), sub: s.turns ? `avg ${clock(s.agentMs / s.turns)} / turn` : '' },
-      {
+      { key: 'tokens', label: 'tokens', value: count(s.tokens), sub: `${s.turns} ${s.turns === 1 ? 'turn' : 'turns'}` },
+      { key: 'time', label: 'agent time', value: clock(s.agentMs), sub: s.timed ? `⌀ ${clock(s.agentMs / s.timed)} / turn` : '' },
+    ]
+    if (s.context) {
+      cols.push({
+        key: 'context',
+        label: 'context',
+        value: `${s.context.percent}%`,
+        sub: isFull ? 'try /compact' : `${count(s.context.tokens)} of ${count(s.context.window)}`,
+        ...(isFull ? { tone: 'warning' as const } : {}),
+      })
+    }
+    if (reuse !== undefined) cols.push({ key: 'reuse', label: 'reuse', value: `${reuse}%`, sub: `${s.reused.length} reused` })
+    if (s.openCallers.length) {
+      cols.push({ key: 'callers', label: 'callers', value: `${s.openCallers.length} open`, sub: s.openCallers.slice(0, 2).join(', '), tone: 'warning' })
+    }
+    if (s.tests.state !== 'none') {
+      cols.push({
+        key: 'tests',
         label: 'tests',
         value: testsText(s.tests),
-        sub: s.tests.state === 'pass' ? 'after last change' : s.tests.state === 'fail' ? 'last run' : '',
-        tone: testsColor,
-      },
-      { label: 'skills', value: `${s.packs.length}`, sub: s.packs.join(', ') || 'none yet' },
-    ] as const
+        sub: s.tests.state === 'pass' ? 'after last change' : s.tests.state === 'fail' ? 'last run' : 'code changed since',
+        ...(testsColor ? { tone: testsColor } : {}),
+      })
+    }
+    if (s.packs.length) cols.push({ key: 'skills', label: 'skills', value: `${s.packs.length}`, sub: s.packs.join(', ') })
 
-    // A terminal needs widths in cells; elsewhere the columns share the row.
-    const wide = e.surface === 'terminal' ? { width: Math.max(12, Math.floor(e.props.bodyColumns / columns.length) - 2) } : { flexGrow: 1 }
-    const levels = LEVELS.map(l => (
-      <Button
-        key={`level-${l}`}
-        label={l}
-        {...(l === current ? { variant: 'primary' as const } : { plain: true as const, dimColor: true })}
-        onPress={() => choose(l).catch(failed('saving the level'))}
-      />
-    ))
-
-    const mine = (
+    let metrics = (
       <Box flexDirection="column">
-        <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
-          <Text bold color="warning">
-            GRAUT
-          </Text>
-          <Text dimColor>by Pranjal</Text>
-          <Text>{mood(e.props.isWorking, current, s.tests)}</Text>
-        </Box>
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={1}>
-          {levels}
-          <Box flexGrow={1} />
-          <Button key="copy" plain label="Copy" onPress={() => copy().catch(failed('copy'))} />
-          <Button key="review" plain label="Review" onPress={() => ask('review the current changes for bugs and bloat; report only')} />
-          <Button key="audit" plain label="Audit" onPress={() => ask('audit this project for bugs, security, accessibility and bloat; report only')} />
-          <Button key="doctor" plain label="Doctor" onPress={() => doctor().catch(failed('doctor (is Node.js installed?)'))} />
-          <Button key="compact" plain label={isCompact ? 'Details' : 'Compact'} onPress={() => update($, compact, v => !v)} />
-        </Box>
-        {isCompact ? null : (
-          <Box flexDirection="column">
-            <Text dimColor wrap="truncate-end">
-              {'─'.repeat(e.props.bodyColumns)}
-            </Text>
-            <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
-              {columns.map(c => (
-                <Box key={c.label} flexDirection="column" {...wide}>
-                  <Text dimColor>{c.label}</Text>
-                  <Text bold color={'tone' in c ? c.tone : 'text'}>
-                    {c.value}
-                  </Text>
-                  <Text dimColor wrap="truncate-end">
-                    {c.sub}
-                  </Text>
-                </Box>
-              ))}
+        <Text dimColor wrap="truncate-end">
+          {'─'.repeat(e.props.bodyColumns)}
+        </Text>
+        <Box flexDirection="row" columnGap={2}>
+          {cols.map(c => (
+            // Off the terminal the columns share the row; a width in cells would cut the text.
+            <Box key={c.key} flexDirection="column" {...(width === undefined ? { flexGrow: 1 } : { width: Math.max(10, Math.floor(width / cols.length) - 2) })}>
+              <Text dimColor>{c.label}</Text>
+              <Text bold color={c.tone}>
+                {c.value}
+              </Text>
+              <Text dimColor wrap="truncate-end">
+                {c.sub || (c.key === 'cost' ? bars(s.turnCosts) : '')}
+              </Text>
             </Box>
-          </Box>
-        )}
+          ))}
+        </Box>
       </Box>
     )
-    return below ? (
-      <Box flexDirection="column">
-        {mine}
-        {below}
-      </Box>
-    ) : (
-      mine
+    // Characters make broken lines in the desktop's proportional font; an image draws real ones.
+    if (e.surface === 'desktop') {
+      const { Svg } = $.ui.resolve(e)
+      // A wider drawing for many columns keeps their second lines readable.
+      const wide = Math.max(720, cols.length * 140)
+      metrics = <Svg source={metricsSvg(cols, s.turnCosts, wide)} alt={cols.map(c => `${c.label} ${c.value} ${c.sub}`).join(', ')} />
+    }
+
+    return stack(
+      // The image draws its own line at the top, which would touch the buttons without the gap.
+      <Box flexDirection="column" width={width} gap={e.surface === 'desktop' ? 1 : 0}>
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={1}>
+          {title}
+          {LEVELS.map(l => (
+            <Button
+              key={`level-${l}`}
+              label={l}
+              {...(l === current ? { variant: 'primary' as const } : { plain: true as const, dimColor: true })}
+              onPress={() => choose(l).catch(failed('saving the level'))}
+            />
+          ))}
+          <Box flexGrow={1} />
+          <Button key="copy" plain label="Copy" onPress={() => copy().catch(failed('copy'))} />
+          {actions}
+        </Box>
+        {metrics}
+      </Box>,
     )
   })
 }

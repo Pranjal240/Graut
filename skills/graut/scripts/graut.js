@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const { parseArgs } = require('util');
 const { run, works, shell, npm, ensureTool, fixFor, TOOLS, prepare, report } = require('./setup.js');
+const { buildMap } = require('./map.js');
 
 const SKILL_DIR = path.dirname(__dirname);
 // The npm package or clone this script runs from; it also holds the Claude Code plugin.
@@ -166,6 +167,15 @@ function removeOurs(skillsDir, names) {
   }).length;
 }
 
+// Whether Claude Code has a plugin switched on.
+function pluginOn(id) {
+  try {
+    return JSON.parse(read(path.join(CLAUDE, 'settings.json'))).enabledPlugins?.[id] === true;
+  } catch {
+    return false; // no settings file, or one that is not plain JSON
+  }
+}
+
 // Claude Code's own command, pointed at the sandbox during tests.
 const claude = (...args) =>
   shell('claude', args, {
@@ -235,7 +245,9 @@ function level(name, opts) {
   for (const agent of pickAgents(opts.agents)) {
     const { memory } = AGENTS[agent];
     // Files without the note are left alone, unless "off" is what removed it.
-    if (memory && (isActive(memory) || (before === 'off' && !opts['no-activate']))) {
+    if (agent === 'claude' && pluginOn('graut@graut')) {
+      deactivate(memory); // the plugin's session start reads the new level
+    } else if (memory && (isActive(memory) || (before === 'off' && !opts['no-activate']))) {
       activate(memory, name);
       console.log(`${agent}: ${memory} updated`);
     }
@@ -306,7 +318,10 @@ async function install(opts) {
           todo.push('for the panel, in Claude Code run: /plugin marketplace add Pranjal240/Graut then /plugin install graut@graut');
         }
       }
-      if (memory && !opts['no-activate']) activate(memory, savedLevel());
+      // The plugin tells Claude at session start; a note in CLAUDE.md as well would say it twice
+      // and keep saying it after the plugin is switched off.
+      if (agent === 'claude' && (plugin || isPlugin())) deactivate(memory);
+      else if (memory && !opts['no-activate']) activate(memory, savedLevel());
     } catch (error) {
       failed.push(`${agent}: ${error.message}`);
     }
@@ -405,9 +420,21 @@ function doctor(opts) {
 }
 
 // Claude Code runs this when a session starts. Silent if CLAUDE.md already says the same.
+// What Claude Code hears at session start: the note and a map of the code that already exists.
 function hook() {
-  const text = block(savedLevel());
-  if (text && !read(AGENTS.claude.memory).includes(text)) console.log(text);
+  const level = savedLevel();
+  const text = block(level);
+  if (!text) return 0;
+  if (!read(AGENTS.claude.memory).includes(text)) console.log(text);
+  const here = path.resolve(process.cwd());
+  // ponytail prints the same map; a home folder or a drive is not a project and is too big to walk
+  if (level === 'lite' || pluginOn('ponytail@ponytail') || here === path.resolve(HOME) || here === path.parse(here).root) return 0;
+  try {
+    const map = buildMap(here);
+    if (map) console.log(map);
+  } catch {
+    // a folder that cannot be listed must not break the start of a session
+  }
   return 0;
 }
 

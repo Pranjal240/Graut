@@ -86,8 +86,10 @@ write(path.join(codex, 'graut', 'SKILL.md'), skill('graut', 'user graut'));
 write(memory, 'my own rules\n');
 test.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-test('hook tells Claude about Graut until CLAUDE.md does', () => {
-  assert.match(graut('hook').stdout, /Use the `graut` skill/);
+test('hook tells Claude about Graut quietly until CLAUDE.md does', () => {
+  const said = graut('hook').stdout;
+  assert.match(said, /only when the user asks for it or the task needs one of its specialists/);
+  assert.doesNotMatch(said, /Tention|every task/);
 });
 
 test('install leaves one graut skill, merges old copies and keeps user folders', () => {
@@ -106,7 +108,7 @@ test('install leaves one graut skill, merges old copies and keeps user folders',
   assert.match(read(codex, 'graut', 'SKILL.md'), /user graut/);
   assert.strictEqual(read(memory).match(/graut:start/g).length, 1);
   assert.strictEqual(read(`${memory}.graut.bak`), 'my own rules\n');
-  assert.strictEqual(graut('hook').stdout, '');
+  assert.doesNotMatch(graut('hook').stdout, /Graut level/);
 });
 
 test('level changes the note in instruction files, and off removes it', () => {
@@ -114,14 +116,35 @@ test('level changes the note in instruction files, and off removes it', () => {
   assert.match(graut('level').stdout, /Graut level: full/);
   assert.strictEqual(set('ultra').status, 0);
   assert.match(read(memory), /Graut level: ultra/);
-  assert.strictEqual(graut('hook').stdout, '');
+  assert.doesNotMatch(graut('hook').stdout, /Graut level/);
   set('off');
   assert.strictEqual(read(memory), 'my own rules\n');
-  assert.strictEqual(graut('hook').stdout, '');
+  assert.doesNotMatch(graut('hook').stdout, /Graut level/);
   set('lite');
   assert.match(read(memory), /Graut level: lite/);
   assert.match(set('turbo').stderr, /unknown level/);
   set('full');
+});
+
+test('with the plugin on, the note leaves CLAUDE.md and the hook maps the project once', () => {
+  const settings = path.join(home, '.claude', 'settings.json');
+  const project = path.join(tmp, 'mapped');
+  write(path.join(project, 'lib', 'money.js'), 'export function formatRupees() {}');
+  const hook = () =>
+    spawnSync(process.execPath, [path.join(bundle, 'scripts', 'graut.js'), 'hook'], { cwd: project, encoding: 'utf8', env: sandbox }).stdout;
+
+  write(settings, JSON.stringify({ enabledPlugins: { 'graut@graut': true } }));
+  assert.strictEqual(graut('level', 'full', '--agents', 'claude').status, 0);
+  assert.strictEqual(read(memory).trim(), 'my own rules');
+  assert.match(hook(), /Graut level: full[^]*Codebase map[^]*lib.: formatRupees/);
+
+  // ponytail already prints the map
+  write(settings, JSON.stringify({ enabledPlugins: { 'graut@graut': true, 'ponytail@ponytail': true } }));
+  assert.doesNotMatch(hook(), /Codebase map/);
+  fs.rmSync(settings);
+  graut('level', 'off', '--agents', 'claude');
+  assert.strictEqual(hook(), '');
+  graut('level', 'full', '--agents', 'claude');
 });
 
 test('find searches packs, other local skills and the catalog', () => {
